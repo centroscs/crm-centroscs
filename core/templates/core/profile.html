@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Profilo{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-3">Profilo</h1>
+
+<div class="card">
+  <div class="card-body">
+    <p class="mb-1"><strong>Utente:</strong> {{ user.username }}</p>
+    <p class="mb-1"><strong>Email:</strong> {{ user.email }}</p>
+
+    <hr>
+
+    {% if crm_agent %}
+      <p class="mb-1"><strong>Agente collegato:</strong> {{ crm_agent.name }}</p>
+      <p class="mb-1"><strong>Email agente:</strong> {{ crm_agent.email }}</p>
+      <p class="mb-0"><strong>Google color id:</strong> {{ crm_agent.google_color_id }}</p>
+    {% else %}
+      <div class="alert alert-warning mb-0">
+        Nessun agente associato a questo utente (match per email).
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

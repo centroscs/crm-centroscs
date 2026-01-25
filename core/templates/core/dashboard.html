@@ -1,0 +1,77 @@
+{% extends "core/base.html" %}
+{% block title %}Dashboard CRM{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<style>
+  #dashCalendar { max-width: 1100px; margin: 0 auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-0">Dashboard CRM</h1>
+    <div class="text-muted small">Calendario settimanale + accessi rapidi</div>
+  </div>
+  <div class="text-muted small">
+    Calendario (settimana) — Stato: <span id="dashCalStatus">inizializzazione…</span>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-9">
+    <div class="card">
+      <div class="card-body">
+        <div id="dashCalendar"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card">
+      <div class="card-header fw-semibold">Accessi rapidi</div>
+      <div class="list-group list-group-flush">
+        <a class="list-group-item list-group-item-action" href="{% url 'appointment_new' %}">+ Nuovo appuntamento</a>
+        <a class="list-group-item list-group-item-action" href="{% url 'contact_new' %}">+ Nuovo contatto</a>
+        <a class="list-group-item list-group-item-action" href="{% url 'agent_new' %}">+ Nuovo agente</a>
+        <a class="list-group-item list-group-item-action" href="{% url 'property_add' %}">+ Nuovo immobile</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const statusEl = document.getElementById('dashCalStatus');
+    const el = document.getElementById('dashCalendar');
+
+    try {
+      const cal = new FullCalendar.Calendar(el, {
+        initialView: 'timeGridWeek',
+        height: 'auto',
+        nowIndicator: true,
+        locale: 'it',
+        headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+        events: {
+          url: "{% url 'appointments_feed' %}",
+          failure: function () {
+            statusEl.textContent = 'errore feed';
+          }
+        },
+        loading: function (isLoading) {
+          statusEl.textContent = isLoading ? 'caricamento…' : 'ok';
+        }
+      });
+
+      cal.render();
+    } catch (e) {
+      statusEl.textContent = 'errore JS';
+      console.error(e);
+    }
+  });
+</script>
+{% endblock %}

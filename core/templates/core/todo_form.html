@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% block title %}Todo{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">
+    {% if object %}Modifica Todo{% else %}Nuova Todo{% endif %}
+  </h1>
+</div>
+
+<form method="post" class="card card-body" style="max-width: 720px;">
+  {% csrf_token %}
+
+  <div class="mb-3">
+    <label class="form-label">Titolo</label>
+    <input
+      type="text"
+      name="title"
+      class="form-control"
+      value="{% if object %}{{ object.title }}{% endif %}"
+      placeholder="Es: Richiamare cliente / Sopralluogo / Inviare documenti"
+      required
+    >
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Scadenza (data e ora)</label>
+    <input
+      type="datetime-local"
+      name="due_at"
+      class="form-control"
+      value="{% if object and object.due_at %}{{ object.due_at|date:'Y-m-d\\TH:i' }}{% endif %}"
+    >
+    <div class="form-text">Facoltativo. Esempio: 2026-01-24 15:30</div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Salva</button>
+
+    {% if agent %}
+      <a class="btn btn-outline-secondary" href="{% url 'agent_todos' agent.pk %}">Annulla</a>
+    {% else %}
+      <a class="btn btn-outline-secondary" href="{% url 'admin_todos' %}">Annulla</a>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

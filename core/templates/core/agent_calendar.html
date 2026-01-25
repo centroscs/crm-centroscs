@@ -1,0 +1,66 @@
+{% extends "core/base.html" %}
+{% block title %}Calendario — {{ agent.name }}{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h4 mb-0">Calendario — {{ agent.name }}</h1>
+
+    {% if viewer == "admin" %}
+      <div class="text-muted small">Stai visualizzando il calendario dell’agente (vista admin).</div>
+    {% else %}
+      <div class="text-muted small">Questo è il tuo calendario personale.</div>
+    {% endif %}
+  </div>
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'appointments_calendar' %}">Calendario generale</a>
+    <a class="btn btn-outline-secondary" href="{% url 'agent_todos' agent.id %}">To-Do agente</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-end mb-2 text-muted small">
+      Stato: <span id="calStatus">inizializzazione…</span>
+    </div>
+    <div id="calendar" style="min-height:620px"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const statusEl = document.getElementById('calStatus');
+  const el = document.getElementById('calendar');
+
+  const calendar = new FullCalendar.Calendar(el, {
+    locale: 'it',
+    firstDay: 1,
+    initialView: 'timeGridWeek',
+    nowIndicator: true,
+    height: 'auto',
+    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+    events: {
+      url: "{% url 'agent_appointments_feed' agent.id %}",
+      failure: function() { statusEl.textContent = 'errore caricamento feed'; }
+    },
+    loading: function(isLoading) { statusEl.textContent = isLoading ? 'caricamento…' : 'ok'; },
+    eventClick: function(info) {
+      if (info.event && info.event.url) {
+        info.jsEvent.preventDefault();
+        window.location.href = info.event.url;
+      }
+    }
+  });
+
+  calendar.render();
+});
+</script>
+{% endblock %}

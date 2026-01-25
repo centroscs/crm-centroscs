@@ -1,0 +1,104 @@
+{% extends "core/base.html" %}
+{% block title %}Nuova attività{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Nuova attività</h1>
+  <a class="btn btn-outline-secondary btn-sm" href="/crm/">Indietro</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Tipologia</label>
+          <select class="form-select" name="tipologia" id="tipologia">
+            <option value="appointment" selected>Appuntamento (calendario generale)</option>
+            <option value="todo">To-Do (solo agente)</option>
+          </select>
+        </div>
+
+        <div class="col-md-8">
+          <label class="form-label">Titolo</label>
+          <input class="form-control" name="title" required>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Agente</label>
+          <input class="form-control" name="agent_id" value="{{ agent.id }}" readonly>
+          <div class="text-muted small">Per ora usa l’agente di default. Poi lo leghiamo all’utente loggato.</div>
+        </div>
+
+        <div class="col-12" id="block-appointment">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Inizio</label>
+              <input type="datetime-local" class="form-control" name="start">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fine</label>
+              <input type="datetime-local" class="form-control" name="end">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Luogo</label>
+              <input class="form-control" name="location">
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 d-none" id="block-todo">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Scadenza (opzionale)</label>
+              <input type="datetime-local" class="form-control" name="due_at">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Note (opzionale)</label>
+              <input class="form-control" name="notes">
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12" id="block-notes">
+          <label class="form-label">Note (opzionale)</label>
+          <textarea class="form-control" name="notes" rows="3"></textarea>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Salva</button>
+          <a class="btn btn-outline-secondary" href="/crm/">Annulla</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const tip = document.getElementById('tipologia');
+  const appt = document.getElementById('block-appointment');
+  const todo = document.getElementById('block-todo');
+  const notes = document.getElementById('block-notes');
+
+  function refresh(){
+    if (tip.value === 'todo'){
+      appt.classList.add('d-none');
+      todo.classList.remove('d-none');
+      notes.classList.add('d-none'); // usiamo note inline nel blocco todo
+    } else {
+      appt.classList.remove('d-none');
+      todo.classList.add('d-none');
+      notes.classList.remove('d-none');
+    }
+  }
+
+  tip.addEventListener('change', refresh);
+  refresh();
+})();
+</script>
+{% endblock %}

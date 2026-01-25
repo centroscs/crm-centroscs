@@ -1,0 +1,43 @@
+# =========================
+# SECRETS
+# =========================
+.env
+.env.*
+client_secret.json
+
+# =========================
+# LOGS / TEMP
+# =========================
+*.log
+cat.save
+nano
+*.bak
+
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.pyc
+
+# =========================
+# VIRTUAL ENV
+# =========================
+.venv/
+.venv_py39_backup/
+
+# =========================
+# DJANGO
+# =========================
+db.sqlite3
+media/
+
+# =========================
+# OS / EDITOR
+# =========================
+.DS_Store
+.idea/
+.vscode/
+
+# template volanti (temporaneo)
+agent_todos.html
+my_todos_admin.html

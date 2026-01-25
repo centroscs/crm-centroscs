@@ -1,0 +1,52 @@
+{% extends "core/base.html" %}
+{% block title %}Appuntamento{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-0">{{ appointment.title }}</h1>
+    <div class="text-muted small">{{ appointment.start }} → {{ appointment.end }}</div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointment_edit' appointment.id %}">Modifica</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointments_list' %}">Torna alla lista</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Titolo</dt>
+      <dd class="col-sm-9">{{ appointment.title }}</dd>
+
+      <dt class="col-sm-3">Inizio</dt>
+      <dd class="col-sm-9">{{ appointment.start }}</dd>
+
+      <dt class="col-sm-3">Fine</dt>
+      <dd class="col-sm-9">{{ appointment.end }}</dd>
+
+      <dt class="col-sm-3">Luogo</dt>
+      <dd class="col-sm-9">{{ appointment.location }}</dd>
+
+      <dt class="col-sm-3">Note</dt>
+      <dd class="col-sm-9">{{ appointment.notes }}</dd>
+
+      <dt class="col-sm-3">Agente</dt>
+      <dd class="col-sm-9">
+        {% if appointment.agent_id %}
+          <a href="{% url 'agent_detail' appointment.agent_id %}">{{ appointment.agent }}</a>
+        {% else %}
+          —
+        {% endif %}
+      </dd>
+
+      <dt class="col-sm-3">Contatto</dt>
+      <dd class="col-sm-9">{{ appointment.contact }}</dd>
+
+      <dt class="col-sm-3">Immobile</dt>
+      <dd class="col-sm-9">{{ appointment.property }}</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}

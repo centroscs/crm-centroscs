@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+
+{% block title %}{% if object %}Modifica agente{% else %}Nuovo agente{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">{% if object %}Modifica agente{% else %}Nuovo agente{% endif %}</h1>
+</div>
+
+<form method="post" class="card card-body" style="max-width: 720px;">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  {% include "core/_form.html" %}
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Salva</button>
+    {% if object %}
+      <a class="btn btn-outline-secondary" href="{% url 'agent_detail' object.pk %}">Annulla</a>
+    {% else %}
+      <a class="btn btn-outline-secondary" href="{% url 'agents_list' %}">Annulla</a>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "core/base.html" %}
+{% block title %}Appuntamenti{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">Appuntamenti</h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary btn-sm" href="{% url 'appointment_new' %}">Nuovo</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointments_calendar' %}">Calendario</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/crm/appointments/sync/">Sync Google</a>
+  </div>
+</div>
+
+<form class="card card-body mb-3" method="get">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Cerca</label>
+      <input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="titolo, luogo, note, contatto, immobile…">
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">Agente</label>
+      <select class="form-select" name="agent">
+        <option value="">Tutti</option>
+        {% for ag in agents %}
+          <option value="{{ ag.id }}" {% if request.GET.agent == ag.id|stringformat:"s" %}selected{% endif %}>
+            {{ ag.name|default:ag.email }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">Contatto</label>
+      <select class="form-select" name="contact">
+        <option value="">Tutti</option>
+        {% for c in contacts %}
+          <option value="{{ c.id }}" {% if request.GET.contact == c.id|stringformat:"s" %}selected{% endif %}>
+            {{ c.full_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">Immobile</label>
+      <select class="form-select" name="property">
+        <option value="">Tutti</option>
+        {% for p in properties %}
+          <option value="{{ p.id }}" {% if request.GET.property == p.id|stringformat:"s" %}selected{% endif %}>
+            {{ p.code }}{% if p.title %} — {{ p.title }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-1">
+      <label class="form-label">Dal</label>
+      <input type="date" class="form-control" name="from" value="{{ request.GET.from }}">
+    </div>
+
+    <div class="col-md-1">
+      <label class="form-label">Al</label>
+      <input type="date" class="form-control" name="to" value="{{ request.GET.to }}">
+    </div>
+
+    <div class="col-12 d-flex gap-2 mt-2">
+      <button class="btn btn-dark btn-sm">Filtra</button>
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointments_list' %}">Reset</a>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-striped align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Data/Ora</th>
+          <th>Titolo</th>
+          <th>Agente</th>
+          <th>Contatto</th>
+          <th>Immobile</th>
+          <th>Stato</th>
+          <th class="text-end">Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for a in appointments %}
+        <tr>
+          <td>{{ a.start|date:"d/m/Y H:i" }}</td>
+
+          <td class="fw-semibold">
+            <a class="text-decoration-none" href="{% url 'appointment_detail' a.id %}">
+              {{ a.title }}
+            </a>
+            {% if a.location %}
+              <div class="text-muted small">{{ a.location }}</div>
+            {% endif %}
+          </td>
+
+          <td>{{ a.agent.name|default:a.agent.email }}</td>
+          <td>{% if a.contact %}{{ a.contact.full_name }}{% else %}-{% endif %}</td>
+          <td>{% if a.property %}{{ a.property.code }}{% else %}-{% endif %}</td>
+
+          <td>
+            {% if a.sync_state == "synced" %}
+              <span class="badge text-bg-success">Sincronizzato</span>
+            {% elif a.sync_state == "error" %}
+              <span class="badge text-bg-danger">Errore</span>
+            {% else %}
+              <span class="badge text-bg-secondary">Locale</span>
+            {% endif %}
+          </td>
+
+          <td class="text-end">
+            <a class="btn btn-outline-primary btn-sm" href="{% url 'appointment_edit' a.id %}">Modifica</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted">Nessun appuntamento</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "core/base.html" %}
+{% block title %}Calendario — Generale{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<style>
+  #calendar { max-width: 1100px; margin: 0 auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-0">Calendario — Generale</h1>
+    <div class="text-muted small">Calendario generale degli appuntamenti. Vista completa (admin).</div>
+  </div>
+  <div class="text-muted small">
+    Stato: <span id="calStatus">inizializzazione…</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div id="calendar"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const statusEl = document.getElementById('calStatus');
+    const calEl = document.getElementById('calendar');
+
+    const calendar = new FullCalendar.Calendar(calEl, {
+      initialView: 'timeGridWeek',
+      height: 'auto',
+      nowIndicator: true,
+      locale: 'it',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+      },
+      events: {
+        url: "{% url 'appointments_feed' %}",
+        failure: function() {
+          statusEl.textContent = 'errore caricamento feed';
+        }
+      },
+      loading: function(isLoading) {
+        statusEl.textContent = isLoading ? 'caricamento…' : 'ok';
+      }
+    });
+
+    calendar.render();
+  });
+</script>
+{% endblock %}

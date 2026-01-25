@@ -1,0 +1,38 @@
+{% extends "core/base.html" %}
+{% block title %}Agente{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-0">{{ agent.name|default:"(senza nome)" }}</h1>
+    <div class="text-muted small">{{ agent.email|default:"" }}</div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'agent_edit' agent.id %}">Modifica</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'agent_calendar' agent.id %}">Calendario</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'agent_todos' agent.id %}">Todo</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Nome</dt>
+      <dd class="col-sm-9">{{ agent.name|default:"(senza nome)" }}</dd>
+
+      <dt class="col-sm-3">Email</dt>
+      <dd class="col-sm-9">{{ agent.email|default:"" }}</dd>
+
+      <dt class="col-sm-3">Colore Google</dt>
+      <dd class="col-sm-9">{{ agent.google_color_id }}</dd>
+
+      <dt class="col-sm-3">Creato</dt>
+      <dd class="col-sm-9">{{ agent.created_at }}</dd>
+
+      <dt class="col-sm-3">Aggiornato</dt>
+      <dd class="col-sm-9">{{ agent.updated_at }}</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}

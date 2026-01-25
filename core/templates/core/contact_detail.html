@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+{% block title %}Contatto{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">{{ contact.full_name }}</h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'contacts_list' %}">Indietro</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'contact_edit' contact.pk %}">Modifica</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div><strong>Email:</strong> {{ contact.email|default:"—" }}</div>
+    <div><strong>Telefono:</strong> {{ contact.phone|default:"—" }}</div>
+    <hr>
+    <div class="text-muted small"><strong>Creato:</strong> {{ contact.created_at }}</div>
+    <div class="text-muted small"><strong>Aggiornato:</strong> {{ contact.updated_at }}</div>
+  </div>
+</div>
+{% endblock %}
+

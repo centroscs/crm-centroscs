@@ -1,0 +1,109 @@
+{% extends "core/base.html" %}
+
+{% block title %}
+  {% if object %}Modifica appuntamento{% else %}Nuovo appuntamento{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">
+    {% if object %}Modifica appuntamento{% else %}Nuovo appuntamento{% endif %}
+  </h1>
+</div>
+
+<form method="post" class="card card-body" style="max-width: 900px;">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+  
+  {% if form.errors %}
+     <div class="alert alert-danger">
+      <strong>Errori form:</strong><br>
+    {{ form.errors }}
+    </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label">Titolo</label>
+      {{ form.title }}
+      {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Agente</label>
+      {{ form.agent }}
+      {% if form.agent.errors %}<div class="text-danger small">{{ form.agent.errors }}</div>{% endif %}
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Contatto</label>
+      {{ form.contact }}
+      {% if form.contact.errors %}<div class="text-danger small">{{ form.contact.errors }}</div>{% endif %}
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Immobile</label>
+      {{ form.property }}
+      {% if form.property.errors %}<div class="text-danger small">{{ form.property.errors }}</div>{% endif %}
+    </div>
+
+    <div class="col-12">
+      <label class="form-label">Luogo</label>
+
+      {# INPUT SEMPRE EDITABILE (anche se il ModelForm non ha il campo) #}
+      <input
+        type="text"
+        name="location"
+        class="form-control"
+        value="{% firstof appointment.location appointment.place appointment.luogo '' %}"
+        placeholder="Via Roma 10, Albano Laziale / Ufficio / Zoom"
+      >
+
+      <div class="form-text">Esempio: “Via Roma 10, Albano Laziale” oppure “Ufficio / Zoom”.</div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Inizio (data e ora)</label>
+      {{ form.start }}
+      {% if form.start.errors %}<div class="text-danger small">{{ form.start.errors }}</div>{% endif %}
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Fine (data e ora)</label>
+      {{ form.end }}
+      {% if form.end.errors %}<div class="text-danger small">{{ form.end.errors }}</div>{% endif %}
+    </div>
+
+    {% if form.notes %}
+    <div class="col-12">
+      <label class="form-label">Note</label>
+      {{ form.notes }}
+      {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <hr class="my-4">
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Salva</button>
+    {% if object %}
+      <a class="btn btn-outline-secondary" href="{% url 'appointment_detail' object.pk %}">Annulla</a>
+    {% else %}
+      <a class="btn btn-outline-secondary" href="{% url 'appointments_list' %}">Annulla</a>
+    {% endif %}
+  </div>
+</form>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('input, select, textarea').forEach(function (el) {
+      if (el.tagName === 'SELECT') el.classList.add('form-select');
+      else el.classList.add('form-control');
+    });
+  });
+</script>
+{% endblock %}

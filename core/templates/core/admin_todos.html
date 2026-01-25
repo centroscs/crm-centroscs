@@ -1,0 +1,112 @@
+{% extends "core/base.html" %}
+{% block title %}Todo — Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-0">Todo — Admin</h1>
+    <div class="text-muted small">Tutte le todo divise per agente</div>
+  </div>
+</div>
+
+{% if agent_blocks %}
+  <div class="accordion" id="todosByAgent">
+    {% for b in agent_blocks %}
+      {% with a=b.agent open_todos=b.open_todos closed_todos=b.closed_todos %}
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="h{{ a.id }}">
+          <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#c{{ a.id }}"
+                  aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                  aria-controls="c{{ a.id }}">
+            <span class="fw-semibold">{{ a.name|default:"(senza nome)" }}</span>
+          </button>
+        </h2>
+
+        <div id="c{{ a.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+             aria-labelledby="h{{ a.id }}" data-bs-parent="#todosByAgent">
+          <div class="accordion-body">
+
+            <div class="row g-3">
+              <div class="col-lg-6">
+                <div class="card">
+                  <div class="card-header fw-semibold">Aperte</div>
+                  <div class="card-body">
+                    {% if open_todos %}
+                      <div class="list-group">
+                        {% for t in open_todos %}
+                          <div class="list-group-item d-flex justify-content-between align-items-start">
+                            <div class="me-3">
+                              <div class="fw-semibold">{{ t.title }}</div>
+                              <div class="text-muted small">
+                                Scadenza:
+                                {% if t.due_at %}{{ t.due_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                              </div>
+                              <div class="mt-2 d-flex gap-2">
+                                <a class="btn btn-sm btn-outline-secondary" href="{% url 'todo_edit' t.pk %}">Modifica</a>
+                                <a class="btn btn-sm btn-outline-primary" href="{% url 'agent_todos' a.pk %}">Vai all’agente</a>
+                              </div>
+                            </div>
+
+                            <form method="post" action="{% url 'todo_toggle' t.pk %}">
+                              {% csrf_token %}
+                              <button class="btn btn-sm btn-outline-success" type="submit">Chiudi</button>
+                            </form>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="text-muted">Nessuna todo aperta.</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-lg-6">
+                <div class="card">
+                  <div class="card-header fw-semibold">Chiuse</div>
+                  <div class="card-body">
+                    {% if closed_todos %}
+                      <div class="list-group">
+                        {% for t in closed_todos %}
+                          <div class="list-group-item d-flex justify-content-between align-items-start">
+                            <div class="me-3">
+                              <div class="fw-semibold">{{ t.title }}</div>
+                              <div class="text-muted small">
+                                Scadenza:
+                                {% if t.due_at %}{{ t.due_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                              </div>
+                              <div class="mt-2 d-flex gap-2">
+                                <a class="btn btn-sm btn-outline-secondary" href="{% url 'todo_edit' t.pk %}">Modifica</a>
+                                <a class="btn btn-sm btn-outline-primary" href="{% url 'agent_todos' a.pk %}">Vai all’agente</a>
+                              </div>
+                            </div>
+
+                            <form method="post" action="{% url 'todo_toggle' t.pk %}">
+                              {% csrf_token %}
+                              <button class="btn btn-sm btn-outline-secondary" type="submit">Riapri</button>
+                            </form>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="text-muted">Nessuna todo chiusa.</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-warning">
+    Manca <code>agent_blocks</code> nel contesto. Applica anche la patch alla view <code>admin_todos</code>.
+  </div>
+{% endif %}
+
+{% endblock %}

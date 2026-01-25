@@ -1,0 +1,104 @@
+	{% load static %}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Appuntamenti CRM</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background: #f0f0f0;
+        }
+        tr:hover {
+            background: #fafafa;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #fff;
+        }
+        .synced { background: #2ecc71; }
+        .local { background: #f39c12; }
+        .error { background: #e74c3c; }
+
+        .btn {
+            padding: 6px 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+<h1>📅 Appuntamenti CRM</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Titolo</th>
+            <th>Agente</th>
+            <th>Inizio</th>
+            <th>Fine</th>
+            <th>Stato</th>
+            <th>Google</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for a in appointments %}
+        <tr>
+            <td>{{ a.id }}</td>
+            <td>{{ a.title }}</td>
+            <td>{{ a.agent.email }}</td>
+            <td>{{ a.start_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ a.end_at|date:"d/m/Y H:i" }}</td>
+            <td>
+                <span class="badge {{ a.sync_state }}">
+                    {{ a.sync_state }}
+                </span>
+            </td>
+            <td>
+                {% if a.sync_state != "synced" %}
+                    <a href="{% url 'crm_push_appointment' a.id %}" class="btn">
+                        Push →
+                    </a>
+                {% else %}
+                    ✅
+                {% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="7">Nessun appuntamento trovato.</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>

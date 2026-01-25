@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+
+{% block title %}Contatto{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">
+    {% if object %}Modifica contatto{% else %}Nuovo contatto{% endif %}
+  </h1>
+</div>
+
+<form method="post" class="card card-body" style="max-width: 900px;">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="row g-3">
+    {% for field in form %}
+      <div class="col-md-6">
+        <label class="form-label">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <hr class="my-4">
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Salva</button>
+    {% if object %}
+      <a class="btn btn-outline-secondary" href="{% url 'contact_detail' object.pk %}">Annulla</a>
+    {% else %}
+      <a class="btn btn-outline-secondary" href="{% url 'contacts_list' %}">Annulla</a>
+    {% endif %}
+  </div>
+</form>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('input, select, textarea').forEach(function (el) {
+      if (el.tagName === 'SELECT') el.classList.add('form-select');
+      else el.classList.add('form-control');
+    });
+  });
+</script>
+{% endblock %}

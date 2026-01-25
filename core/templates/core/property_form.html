@@ -1,0 +1,196 @@
+{% extends "core/base.html" %}
+{% block title %}Immobile{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-3">{% if object %}Modifica immobile{% else %}Nuovo immobile{% endif %}</h1>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.as_p }}
+
+      {% if can_manage_images %}
+        <hr>
+        <h3 class="h5 mt-3">Carica foto</h3>
+        <p class="text-muted mb-2">Puoi selezionare una o più immagini.</p>
+        {{ image_form.images }}
+      {% endif %}
+
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">Salva</button>
+        <a class="btn btn-outline-secondary" href="{% url 'properties_list' %}">Annulla</a>
+      </div>
+
+      {% if not object %}
+        <div class="small mt-3 text-muted">
+          Dopo aver salvato l’immobile, potrai gestire foto (riordino, principale, elimina).
+        </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% if object %}
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div>
+        <strong>Foto immobile</strong>
+        <span class="text-muted small ms-2">
+          {% if can_manage_images %}
+            (trascina per riordinare • scegli principale • elimina)
+          {% else %}
+            (sola visualizzazione)
+          {% endif %}
+        </span>
+      </div>
+
+      {% if can_manage_images and images and images|length > 1 %}
+        <form method="post" class="m-0" id="reorderForm">
+          {% csrf_token %}
+          <input type="hidden" name="reorder_images" value="1">
+          <input type="hidden" name="order_ids" id="order_ids" value="">
+          <button class="btn btn-sm btn-outline-primary" type="submit">Salva ordine</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <div class="card-body">
+      {% if images and images|length > 0 %}
+        <div id="galleryGrid" class="d-flex flex-wrap gap-3">
+          {% for img in images %}
+            <div class="img-card"
+                 draggable="{% if can_manage_images %}true{% else %}false{% endif %}"
+                 data-img-id="{{ img.id }}"
+                 style="width:180px;">
+
+              <div class="position-relative mb-2">
+                <img src="{{ img.image.url }}"
+                     style="width:180px;height:180px;object-fit:cover;border-radius:14px;{% if img.is_primary %}outline:3px solid #0d6efd;{% endif %}">
+
+                {% if img.is_primary %}
+                  <span class="badge bg-primary position-absolute" style="top:10px;left:10px;">Principale</span>
+                {% endif %}
+
+                {% if can_manage_images %}
+                  <span class="badge bg-dark position-absolute"
+                        style="bottom:10px;left:10px;opacity:.85;cursor:grab;">
+                    ⇅ Drag
+                  </span>
+                {% endif %}
+              </div>
+
+              {% if can_manage_images %}
+                <div class="d-flex gap-2">
+                  <form method="post" class="m-0 w-100">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-primary w-100"
+                            type="submit"
+                            name="set_primary"
+                            value="{{ img.id }}"
+                            {% if img.is_primary %}disabled{% endif %}>
+                      {% if img.is_primary %}Principale{% else %}Rendi principale{% endif %}
+                    </button>
+                  </form>
+
+                  <form method="post" class="m-0 w-100" onsubmit="return confirm('Eliminare questa foto?');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger w-100"
+                            type="submit"
+                            name="delete_image"
+                            value="{{ img.id }}">
+                      Elimina
+                    </button>
+                  </form>
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+
+        {% if can_manage_images and images and images|length > 1 %}
+          <div class="small mt-3 text-muted">
+            Dopo il riordino, clicca <strong>“Salva ordine”</strong>.
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-muted">Nessuna foto caricata.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div id="lightbox"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px;">
+    <img id="lightboxImg" src="" style="max-width:95vw;max-height:90vh;border-radius:16px;">
+  </div>
+
+  <script>
+    (function() {
+      const canManage = {{ can_manage_images|yesno:"true,false" }};
+      const grid = document.getElementById("galleryGrid");
+      if (!grid) return;
+
+      // lightbox
+      const lightbox = document.getElementById("lightbox");
+      const lightboxImg = document.getElementById("lightboxImg");
+      grid.querySelectorAll("img").forEach(img => {
+        img.style.cursor = "zoom-in";
+        img.addEventListener("click", () => {
+          lightboxImg.src = img.src;
+          lightbox.style.display = "flex";
+        });
+      });
+      lightbox.addEventListener("click", () => {
+        lightbox.style.display = "none";
+        lightboxImg.src = "";
+      });
+
+      if (!canManage) return;
+
+      let dragged = null;
+
+      function updateHiddenOrder() {
+        const cards = Array.from(grid.querySelectorAll(".img-card"));
+        const ids = cards.map(c => c.getAttribute("data-img-id"));
+        const input = document.getElementById("order_ids");
+        if (input) input.value = ids.join(",");
+      }
+
+      grid.querySelectorAll(".img-card").forEach(card => {
+        card.addEventListener("dragstart", (e) => {
+          dragged = card;
+          card.style.opacity = "0.6";
+          e.dataTransfer.effectAllowed = "move";
+        });
+
+        card.addEventListener("dragend", () => {
+          if (dragged) dragged.style.opacity = "1";
+          dragged = null;
+          updateHiddenOrder();
+        });
+
+        card.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        });
+
+        card.addEventListener("drop", (e) => {
+          e.preventDefault();
+          if (!dragged || dragged === card) return;
+
+          const rect = card.getBoundingClientRect();
+          const before = (e.clientX - rect.left) < rect.width / 2;
+
+          if (before) grid.insertBefore(dragged, card);
+          else grid.insertBefore(dragged, card.nextSibling);
+
+          updateHiddenOrder();
+        });
+      });
+
+      updateHiddenOrder();
+    })();
+  </script>
+{% endif %}
+{% endblock %}
+
