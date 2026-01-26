@@ -101,6 +101,24 @@ class PropertyImage(models.Model):
                 first_img.is_primary = True
                 first_img.save(update_fields=["is_primary"])
 
+class PropertyAttachment(models.Model):
+    property = models.ForeignKey(
+        Property,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+
+    file = models.FileField(upload_to="properties/%Y/%m/attachments/")
+    title = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return self.title or (self.file.name.split("/")[-1] if self.file else f"Attachment #{self.id}")
+
+
 class Appointment(models.Model):
     title = models.CharField(max_length=200)
     start = models.DateTimeField()

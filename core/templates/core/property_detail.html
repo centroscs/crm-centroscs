@@ -19,7 +19,7 @@
 <div class="row g-3">
   <div class="col-12 col-lg-7">
 
-    {# --- FOTO PRINCIPALE (prima in images grazie a ordering -is_primary,id) --- #}
+    {# --- FOTO PRINCIPALE --- #}
     {% with main=images|first %}
       <div class="card">
         <div class="card-body p-2">
@@ -90,36 +90,58 @@
           </tr>
           <tr>
             <th>Prezzo</th>
-            <td>{% if property.price %}€ {{ property.price }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td>
+              {% if property.price %}€ {{ property.price }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
           </tr>
         </table>
       </div>
     </div>
 
-    {# opzionale: appuntamenti collegati, se li usi già nel progetto #}
-    {% if property.appointments.all %}
-      {% with appts=property.appointments.all %}
-        {% if appts|length > 0 %}
-          <div class="card mt-3">
-            <div class="card-header"><strong>Appuntamenti collegati</strong></div>
-            <div class="card-body">
-              <ul class="list-unstyled mb-0">
-                {% for a in appts %}
-                  <li class="mb-2">
-                    <a href="{% url 'appointment_detail' a.pk %}">{{ a.title }}</a>
-                    <div class="text-muted small">
-                      {{ a.start }}{% if a.end %} → {{ a.end }}{% endif %}
-                    </div>
-                  </li>
-                {% endfor %}
-              </ul>
-            </div>
+    {# opzionale: appuntamenti collegati #}
+    {% with appts=property.appointments.all %}
+      {% if appts and appts|length > 0 %}
+        <div class="card mt-3">
+          <div class="card-header"><strong>Appuntamenti collegati</strong></div>
+          <div class="card-body">
+            <ul class="list-unstyled mb-0">
+              {% for a in appts %}
+                <li class="mb-2">
+                  <a href="{% url 'appointment_detail' a.pk %}">{{ a.title }}</a>
+                  <div class="text-muted small">
+                    {{ a.start|date:"d/m/Y H:i" }}{% if a.end %} → {{ a.end|date:"d/m/Y H:i" }}{% endif %}
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
           </div>
-        {% endif %}
-      {% endwith %}
-    {% endif %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
   </div>
 </div>
+
+<hr class="my-4">
+
+<h5 class="mb-2">Allegati</h5>
+
+{% if attachments %}
+  <ul class="list-group">
+    {% for a in attachments %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{{ a.file.url }}" target="_blank" rel="noopener">
+          {{ a.filename|default:a.file.name }}
+        </a>
+        <small class="text-muted">
+          {{ a.created_at|date:"d/m/Y H:i" }}
+        </small>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="text-muted">Nessun allegato.</div>
+{% endif %}
 
 {# ---------------- LIGHTBOX ---------------- #}
 <div id="lightbox"

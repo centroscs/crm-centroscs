@@ -16,22 +16,16 @@ from .forms import (
     AgentForm,
     AppointmentForm,
     ContactForm,
+    PropertyAttachmentMultiUploadForm,
     PropertyForm,
     PropertyImageMultiUploadForm,
 )
-from .models import Agent, Appointment, Contact, Property, PropertyImage, TodoItem
+from .models import Agent, Appointment, Contact, Property, PropertyAttachment, PropertyImage, TodoItem
 
 
 # ============================================================
 # Helpers
 # ============================================================
-
-def _model_has_field(model_cls, field_name: str) -> bool:
-    try:
-        return any(getattr(f, "name", None) == field_name for f in model_cls._meta.get_fields())
-    except Exception:
-        return False
-
 
 def _order_by_if_exists(qs, *fields: str):
     model_fields = {f.name for f in qs.model._meta.get_fields() if hasattr(f, "name")}
@@ -83,13 +77,6 @@ def _current_agent_for_request(request: HttpRequest) -> Optional[Agent]:
     except Exception:
         return None
 
-def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
-    """
-    Salva SEMPRE il luogo leggendo dal POST 'location'.
-    """
-    luogo = (request.POST.get("location") or "").strip()
-    # qui è il tuo campo vero:
-    obj.location = luogo
 
 def _forbid(request: HttpRequest, msg: str, fallback_url_name: str = "crm_dashboard") -> HttpResponse:
     messages.error(request, msg)
@@ -117,27 +104,9 @@ def _can_manage_images(request: HttpRequest, prop: Optional[Property]) -> bool:
 def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
     """
     Salva SEMPRE il luogo (anche se vuoto) leggendo dal POST 'location'.
-    Supporta eventuali campi diversi: location / place / luogo.
+    Il tuo campo reale è location.
     """
-    luogo = (request.POST.get("location") or "").strip()
-    if hasattr(obj, "location"):
-        obj.location = luogo
-    elif hasattr(obj, "place"):
-        obj.place = luogo
-    elif hasattr(obj, "luogo"):
-        obj.luogo = luogo
-
-
-def _propertyimage_ordering_fields() -> tuple[str, ...]:
-    """
-    Ritorna ordering sicuro:
-    -is_primary sempre, poi position se esiste, poi id.
-    """
-    fields = ["-is_primary"]
-    if _model_has_field(PropertyImage, "position"):
-        fields.append("position")
-    fields.append("id")
-    return tuple(fields)
+    obj.location = (request.POST.get("location") or "").strip()
 
 
 # ============================================================
@@ -200,14 +169,6 @@ def contact_edit(request: HttpRequest, pk: int) -> HttpResponse:
     return render(request, "core/contact_form.html", {"form": form, "object": obj, "contact": obj})
 
 
-def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
-    """
-    Salva SEMPRE il luogo leggendo dal POST 'location'.
-    """
-    luogo = (request.POST.get("location") or "").strip()
-    obj.location = luogo
-
-
 # ============================================================
 # APPOINTMENTS
 # ============================================================
@@ -227,6 +188,7 @@ def appointments_list(request: HttpRequest) -> HttpResponse:
         },
     )
 
+
 @login_required
 def appointment_new(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
@@ -234,13 +196,14 @@ def appointment_new(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             obj = form.save(commit=False)
 
+            # Se non admin, forzo l'agente loggato
             if not _is_admin_user(request.user):
                 me = _current_agent_for_request(request)
                 if not me:
                     return _forbid(request, "Questo utente non è collegato ad alcun Agente.")
                 obj.agent = me
 
-            # 🔴 QUESTA ERA LA RIGA MANCANTE
+            # ✅ salva sempre location
             _set_appointment_location(obj, request)
 
             obj.save()
@@ -252,7 +215,8 @@ def appointment_new(request: HttpRequest) -> HttpResponse:
     else:
         form = AppointmentForm()
 
-    return render(request, "core/appointment_form.html", {"form": form, "object": None})
+    return render(request, "core/appointment_form.html", {"form": form, "object": None, "appointment": None})
+
 
 @login_required
 def appointment_detail(request: HttpRequest, pk: int) -> HttpResponse:
@@ -279,10 +243,11 @@ def appointment_edit(request: HttpRequest, pk: int) -> HttpResponse:
         if form.is_valid():
             updated = form.save(commit=False)
 
+            # Se non admin, ribadisco l'agente loggato (evita spoofing dal form)
             if not _is_admin_user(request.user):
                 updated.agent = _current_agent_for_request(request)
 
-            # 🔴 ANCHE QUI ERA MANCANTE
+            # ✅ salva sempre location
             _set_appointment_location(updated, request)
 
             updated.save()
@@ -294,7 +259,8 @@ def appointment_edit(request: HttpRequest, pk: int) -> HttpResponse:
     else:
         form = AppointmentForm(instance=obj)
 
-    return render(request, "core/appointment_form.html", {"form": form, "object": obj})
+    return render(request, "core/appointment_form.html", {"form": form, "object": obj, "appointment": obj})
+
 
 @login_required
 def appointments_calendar(request: HttpRequest) -> HttpResponse:
@@ -443,7 +409,7 @@ def agent_appointments_feed(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 # ============================================================
-# PROPERTIES
+# PROPERTIES (IMMAGINI + ALLEGATI)
 # ============================================================
 
 @login_required
@@ -455,46 +421,47 @@ def properties_list(request: HttpRequest) -> HttpResponse:
 @login_required
 def property_add(request: HttpRequest) -> HttpResponse:
     can_manage_images = _can_manage_images(request, None)
+    can_manage_attachments = can_manage_images  # stesso permesso
+
     image_form = PropertyImageMultiUploadForm()
+    attachment_form = PropertyAttachmentMultiUploadForm()
 
     if request.method == "POST":
         form = PropertyForm(request.POST)
         image_form = PropertyImageMultiUploadForm(request.POST, request.FILES)
+        attachment_form = PropertyAttachmentMultiUploadForm(request.POST, request.FILES)
 
         if form.is_valid():
             obj: Property = form.save(commit=False)
 
-            # ✅ se non admin, assegna l'immobile all'agente loggato
+            # se non admin, assegna l'immobile all'agente loggato
             if not _is_admin_user(request.user):
                 me = _current_agent_for_request(request)
                 if not me:
                     return _forbid(request, "Questo utente non è collegato ad alcun Agente.")
-                if hasattr(obj, "owner_agent"):
-                    obj.owner_agent = me
+                obj.owner_agent = me
 
             obj.save()
 
-            # upload immagini (permesso: admin o agente che sta creando il proprio immobile)
+            # upload immagini
             if can_manage_images:
-                created_any = False
-                pos_field = _model_has_field(PropertyImage, "position")
                 pos = 0
-
+                created_any = False
                 for f in request.FILES.getlist("images"):
-                    kwargs = {"property": obj, "image": f}
-                    if pos_field:
-                        kwargs["position"] = pos
-                    PropertyImage.objects.create(**kwargs)
+                    PropertyImage.objects.create(property=obj, image=f, position=pos)
                     pos += 1
                     created_any = True
 
-                # se caricate e nessuna primaria: imposta la prima
                 if created_any and not obj.images.filter(is_primary=True).exists():
-                    first_img = obj.images.order_by(*_propertyimage_ordering_fields()).first()
+                    first_img = obj.images.order_by("position", "id").first()
                     if first_img:
-                        obj.images.update(is_primary=False)
                         first_img.is_primary = True
                         first_img.save(update_fields=["is_primary"])
+
+            # upload allegati
+            if can_manage_attachments:
+                for f in request.FILES.getlist("attachments"):
+                    PropertyAttachment.objects.create(property=obj, file=f)
 
             messages.success(request, "Immobile creato.")
             return redirect("property_edit", pk=obj.pk)
@@ -506,115 +473,142 @@ def property_add(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "core/property_form.html",
-        {"form": form, "image_form": image_form, "object": None, "images": [], "can_manage_images": can_manage_images},
+        {
+            "form": form,
+            "image_form": image_form,
+            "attachment_form": attachment_form,
+            "object": None,
+            "images": [],
+            "attachments": [],
+            "can_manage_images": can_manage_images,
+            "can_manage_attachments": can_manage_attachments,
+        },
     )
 
 
 @login_required
 def property_detail(request: HttpRequest, pk: int) -> HttpResponse:
     prop = get_object_or_404(Property, pk=pk)
-    images = list(prop.images.all().order_by(*_propertyimage_ordering_fields()))
-    return render(request, "core/property_detail.html", {"property": prop, "object": prop, "images": images})
+    images = list(prop.images.all().order_by("-is_primary", "position", "id"))
+    attachments = list(prop.attachments.all().order_by("-created_at", "id"))
+    return render(
+        request,
+        "core/property_detail.html",
+        {"property": prop, "object": prop, "images": images, "attachments": attachments},
+    )
 
 
 @login_required
 def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
     obj = get_object_or_404(Property, pk=pk)
 
-    # ✅ permessi: admin sempre, agente solo se owner
     if not _can_edit_property(request, obj):
         return _forbid(request, "Non puoi modificare immobili di altri agenti.")
 
     can_manage_images = _can_manage_images(request, obj)
+    can_manage_attachments = can_manage_images  # stesso permesso
+
     image_form = PropertyImageMultiUploadForm()
-    pos_field = _model_has_field(PropertyImage, "position")
+    attachment_form = PropertyAttachmentMultiUploadForm()
 
-    # --- azioni foto ---
-    if request.method == "POST" and can_manage_images:
-        # A) reorder drag&drop
-        if request.POST.get("reorder_images") == "1" and pos_field:
-            order_ids = (request.POST.get("order_ids") or "").strip()
-            if order_ids:
-                ids = []
-                for part in order_ids.split(","):
-                    part = part.strip()
-                    if part.isdigit():
-                        ids.append(int(part))
+    # --- reorder immagini ---
+    if request.method == "POST" and can_manage_images and request.POST.get("reorder_images") == "1":
+        order_ids = (request.POST.get("order_ids") or "").strip()
+        if order_ids:
+            ids = []
+            for part in order_ids.split(","):
+                part = part.strip()
+                if part.isdigit():
+                    ids.append(int(part))
 
-                imgs = {i.id: i for i in PropertyImage.objects.filter(property=obj, id__in=ids)}
-                pos = 0
-                for img_id in ids:
-                    if img_id in imgs:
-                        PropertyImage.objects.filter(id=img_id).update(position=pos)
-                        pos += 1
+            imgs = {i.id: i for i in PropertyImage.objects.filter(property=obj, id__in=ids)}
+            pos = 0
+            for img_id in ids:
+                if img_id in imgs:
+                    PropertyImage.objects.filter(id=img_id).update(position=pos)
+                    pos += 1
 
-                messages.success(request, "Ordine foto salvato.")
-            return redirect("property_edit", pk=obj.pk)
+            messages.success(request, "Ordine foto salvato.")
+        return redirect("property_edit", pk=obj.pk)
 
-        # B) delete immagine (AUTO-FIX primaria)
-        if request.POST.get("delete_image"):
-            img_id = request.POST.get("delete_image")
-            img = get_object_or_404(PropertyImage, pk=img_id, property=obj)
-            was_primary = bool(img.is_primary)
+    # --- delete immagine ---
+    if request.method == "POST" and can_manage_images and request.POST.get("delete_image"):
+        img_id = request.POST.get("delete_image")
+        img = get_object_or_404(PropertyImage, pk=img_id, property=obj)
+        was_primary = bool(img.is_primary)
 
-            try:
-                if img.image:
-                    img.image.delete(save=False)
-            except Exception:
-                pass
-            img.delete()
+        try:
+            if img.image:
+                img.image.delete(save=False)
+        except Exception:
+            pass
+        img.delete()
 
-            # auto-fix: se era principale -> promuovi la prima rimasta
-            if was_primary:
-                next_img = obj.images.order_by(*_propertyimage_ordering_fields()).first()
-                if next_img:
-                    obj.images.update(is_primary=False)
-                    next_img.is_primary = True
-                    next_img.save(update_fields=["is_primary"])
+        if was_primary:
+            next_img = obj.images.order_by("position", "id").first()
+            if next_img:
+                obj.images.update(is_primary=False)
+                next_img.is_primary = True
+                next_img.save(update_fields=["is_primary"])
 
-            messages.success(request, "Foto eliminata.")
-            return redirect("property_edit", pk=obj.pk)
+        messages.success(request, "Foto eliminata.")
+        return redirect("property_edit", pk=obj.pk)
 
-        # C) set primaria
-        if request.POST.get("set_primary"):
-            img_id = request.POST.get("set_primary")
-            img = get_object_or_404(PropertyImage, pk=img_id, property=obj)
-            obj.images.update(is_primary=False)
-            img.is_primary = True
-            img.save(update_fields=["is_primary"])
-            messages.success(request, "Foto impostata come principale.")
-            return redirect("property_edit", pk=obj.pk)
+    # --- set primary ---
+    if request.method == "POST" and can_manage_images and request.POST.get("set_primary"):
+        img_id = request.POST.get("set_primary")
+        img = get_object_or_404(PropertyImage, pk=img_id, property=obj)
+        obj.images.update(is_primary=False)
+        img.is_primary = True
+        img.save(update_fields=["is_primary"])
+        messages.success(request, "Foto impostata come principale.")
+        return redirect("property_edit", pk=obj.pk)
 
-    # --- salvataggio immobile + upload ---
+    # --- delete allegato ---
+    if request.method == "POST" and can_manage_attachments and request.POST.get("delete_attachment"):
+        att_id = request.POST.get("delete_attachment")
+        att = get_object_or_404(PropertyAttachment, pk=att_id, property=obj)
+        try:
+            if att.file:
+                att.file.delete(save=False)
+        except Exception:
+            pass
+        att.delete()
+        messages.success(request, "Allegato eliminato.")
+        return redirect("property_edit", pk=obj.pk)
+
+    # --- salvataggio immobile + upload (foto + allegati) ---
     if request.method == "POST":
         form = PropertyForm(request.POST, instance=obj)
         image_form = PropertyImageMultiUploadForm(request.POST, request.FILES)
+        attachment_form = PropertyAttachmentMultiUploadForm(request.POST, request.FILES)
 
         if form.is_valid():
             prop = form.save()
 
+            # nuove immagini
             if can_manage_images:
-                # append nuove immagini in coda (solo se position esiste)
-                pos = 0
-                if pos_field and prop.images.exists():
-                    last_pos = prop.images.aggregate(models.Max("position")).get("position__max")
-                    pos = (last_pos + 1) if last_pos is not None else 0
+                last_pos = prop.images.aggregate(models.Max("position")).get("position__max")
+                if last_pos is None:
+                    last_pos = -1
+                pos = last_pos + 1
 
                 created_any = False
                 for f in request.FILES.getlist("images"):
-                    kwargs = {"property": prop, "image": f}
-                    if pos_field:
-                        kwargs["position"] = pos
-                    PropertyImage.objects.create(**kwargs)
+                    PropertyImage.objects.create(property=prop, image=f, position=pos)
                     pos += 1
                     created_any = True
 
                 if created_any and not prop.images.filter(is_primary=True).exists():
-                    first_img = prop.images.order_by(*_propertyimage_ordering_fields()).first()
+                    first_img = prop.images.order_by("position", "id").first()
                     if first_img:
-                        prop.images.update(is_primary=False)
                         first_img.is_primary = True
                         first_img.save(update_fields=["is_primary"])
+
+            # nuovi allegati
+            if can_manage_attachments:
+                for f in request.FILES.getlist("attachments"):
+                    PropertyAttachment.objects.create(property=prop, file=f)
 
             messages.success(request, "Immobile aggiornato.")
             return redirect("property_edit", pk=prop.pk)
@@ -623,11 +617,22 @@ def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
     else:
         form = PropertyForm(instance=obj)
 
-    images = list(obj.images.all().order_by(*_propertyimage_ordering_fields()))
+    images = list(obj.images.all().order_by("-is_primary", "position", "id"))
+    attachments = list(obj.attachments.all().order_by("-created_at", "id"))
+
     return render(
         request,
         "core/property_form.html",
-        {"form": form, "image_form": image_form, "object": obj, "images": images, "can_manage_images": can_manage_images},
+        {
+            "form": form,
+            "image_form": image_form,
+            "attachment_form": attachment_form,
+            "object": obj,
+            "images": images,
+            "attachments": attachments,
+            "can_manage_images": can_manage_images,
+            "can_manage_attachments": can_manage_attachments,
+        },
     )
 
 
