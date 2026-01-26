@@ -39,5 +39,9 @@ media/
 .vscode/
 
 # template volanti (temporaneo)
-agent_todos.html
 my_todos_admin.html
+
+# local artifacts
+.gitignore.BACKUP
+agent_todos.html
+realestate_app ultima versione.zip

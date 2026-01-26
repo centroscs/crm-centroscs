@@ -14,6 +14,12 @@ class PropertyImageMultiUploadForm(forms.Form):
         label="",
     )
 
+class PropertyAttachmentMultiUploadForm(forms.Form):
+    attachments = forms.FileField(
+        required=False,
+        widget=MultiFileInput(attrs={"multiple": True}),
+        label="",
+    )
 
 class ContactForm(forms.ModelForm):
     class Meta:
@@ -27,30 +33,44 @@ class PropertyForm(forms.ModelForm):
         fields = "__all__"
 
 
-from django import forms
-from .models import Appointment
-
 class AppointmentForm(forms.ModelForm):
+    """
+    Usa datetime-local (menu) per start/end.
+    Il campo "location" NON è nel model (altrimenti Django darebbe FieldError),
+    quindi lo gestiamo in template+view.
+    """
+    start = forms.DateTimeField(
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"],
+    )
+    end = forms.DateTimeField(
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"],
+    )
+
     class Meta:
         model = Appointment
-        fields = "__all__"
+        fields = [
+            "title",
+            "agent",
+            "contact",
+            "property",
+            "start",
+            "end",
+            "notes",
+        ]
         widgets = {
-            "start": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "end": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "notes": forms.Textarea(attrs={"rows": 4}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # se in futuro Django cambia widget, lo forziamo qui
-        self.fields["start"].widget.input_type = "datetime-local"
-        self.fields["end"].widget.input_type = "datetime-local"
-
-        # Precompila correttamente in edit
-        for f in ("start", "end"):
-            dt = getattr(self.instance, f, None)
-            if dt:
-                self.initial[f] = dt.strftime("%Y-%m-%dT%H:%M")
+        if self.instance and getattr(self.instance, "pk", None):
+            if self.instance.start:
+                self.fields["start"].initial = self.instance.start.strftime("%Y-%m-%dT%H:%M")
+            if self.instance.end:
+                self.fields["end"].initial = self.instance.end.strftime("%Y-%m-%dT%H:%M")
 
 class AgentForm(forms.ModelForm):
     class Meta:
@@ -61,4 +81,4 @@ class AgentForm(forms.ModelForm):
 class TodoItemForm(forms.ModelForm):
     class Meta:
         model = TodoItem
-        fields = "__all__"
+        fields = "__all__"	
