@@ -1,5 +1,6 @@
 {% extends "core/base.html" %}
 {% block title %}Todo — Le mie{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">Todo — Le mie</h2>
@@ -12,12 +13,17 @@
     {% for a in agents %}
       <div class="accordion-item">
         <h2 class="accordion-header" id="heading{{ a.id }}">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ a.id }}" aria-expanded="false" aria-controls="collapse{{ a.id }}">
+          <button class="accordion-button collapsed" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#collapse{{ a.id }}"
+                  aria-expanded="false" aria-controls="collapse{{ a.id }}">
             <strong>{{ a.name }}</strong>
           </button>
         </h2>
-        <div id="collapse{{ a.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ a.id }}" data-bs-parent="#agentsAccordion">
+
+        <div id="collapse{{ a.id }}" class="accordion-collapse collapse"
+             aria-labelledby="heading{{ a.id }}" data-bs-parent="#agentsAccordion">
           <div class="accordion-body">
+
             <div class="mb-2">
               <a class="btn btn-sm btn-outline-primary" href="{% url 'agent_todos' a.pk %}">Apri gestione completa</a>
               <a class="btn btn-sm btn-primary" href="{% url 'agent_todo_new' a.pk %}">+ Nuova todo</a>
@@ -32,17 +38,24 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <div>
                         <div class="fw-semibold">{{ t.title }}</div>
-                        {% if t.due_date %}
-                          <small class="text-muted">Scadenza: {{ t.due_date }}</small>
+                        {% if t.due_at %}
+                          <small class="text-muted">Scadenza: {{ t.due_at|date:"d/m/Y H:i" }}</small>
                         {% endif %}
                       </div>
+
                       <div class="d-flex gap-2 align-items-center">
-                        {% if t.completed %}
+                        {% if t.is_done %}
                           <span class="badge bg-success">CHIUSA</span>
-                          <a class="btn btn-sm btn-success" href="{% url 'todo_toggle' t.pk %}">Riapri</a>
+                          <form method="post" action="{% url 'todo_toggle' t.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Riapri</button>
+                          </form>
                         {% else %}
                           <span class="badge bg-danger">APERTA</span>
-                          <a class="btn btn-sm btn-danger" href="{% url 'todo_toggle' t.pk %}">Chiudi</a>
+                          <form method="post" action="{% url 'todo_toggle' t.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-success">Chiudi</button>
+                          </form>
                         {% endif %}
                       </div>
                     </li>
@@ -50,6 +63,7 @@
                 </ul>
               {% endif %}
             {% endwith %}
+
           </div>
         </div>
       </div>
