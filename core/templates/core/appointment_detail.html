@@ -4,49 +4,73 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
-    <h1 class="h4 mb-0">{{ appointment.title }}</h1>
-    <div class="text-muted small">{{ appointment.start }} → {{ appointment.end }}</div>
+    <h1 class="h4 mb-0">{{ appointment.title|default:"(senza titolo)" }}</h1>
+    <div class="text-muted small">
+      {% if appointment.agent %}
+        {% firstof appointment.agent.name appointment.agent.email appointment.agent "" %}
+      {% endif %}
+    </div>
   </div>
-
   <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointment_edit' appointment.id %}">Modifica</a>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointments_list' %}">Torna alla lista</a>
+    <a class="btn btn-outline-secondary" href="{% url 'appointments_list' %}">Indietro</a>
+    <a class="btn btn-primary" href="{% url 'appointment_edit' appointment.pk %}">Modifica</a>
   </div>
 </div>
 
 <div class="card">
-  <div class="card-body">
-    <dl class="row mb-0">
-      <dt class="col-sm-3">Titolo</dt>
-      <dd class="col-sm-9">{{ appointment.title }}</dd>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <tr>
+        <th style="width: 180px;">Titolo</th>
+        <td>{{ appointment.title|default:"" }}</td>
+      </tr>
 
-      <dt class="col-sm-3">Inizio</dt>
-      <dd class="col-sm-9">{{ appointment.start }}</dd>
+      <tr>
+        <th>Inizio</th>
+        <td>{% if appointment.start %}{{ appointment.start|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+      </tr>
 
-      <dt class="col-sm-3">Fine</dt>
-      <dd class="col-sm-9">{{ appointment.end }}</dd>
+      <tr>
+        <th>Fine</th>
+        <td>{% if appointment.end %}{{ appointment.end|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+      </tr>
 
-      <dt class="col-sm-3">Luogo</dt>
-      <dd class="col-sm-9">{{ appointment.location }}</dd>
+      <tr>
+        <th>Luogo</th>
+        <td>{% firstof appointment.location appointment.place appointment.luogo "—" %}</td>
+      </tr>
 
-      <dt class="col-sm-3">Note</dt>
-      <dd class="col-sm-9">{{ appointment.notes }}</dd>
+      <tr>
+        <th>Contatto</th>
+        <td>
+          {% if appointment.contact %}
+            <a href="{% url 'contact_detail' appointment.contact.pk %}">
+              {% firstof appointment.contact.full_name appointment.contact "Contatto" %}
+            </a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
 
-      <dt class="col-sm-3">Agente</dt>
-      <dd class="col-sm-9">
-        {% if appointment.agent_id %}
-          <a href="{% url 'agent_detail' appointment.agent_id %}">{{ appointment.agent }}</a>
-        {% else %}
-          —
-        {% endif %}
-      </dd>
+      <tr>
+        <th>Immobile</th>
+        <td>
+          {% if appointment.property %}
+            <a href="{% url 'property_detail' appointment.property.pk %}">
+              {% firstof appointment.property.code appointment.property "Immobile" %}
+            </a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
 
-      <dt class="col-sm-3">Contatto</dt>
-      <dd class="col-sm-9">{{ appointment.contact }}</dd>
-
-      <dt class="col-sm-3">Immobile</dt>
-      <dd class="col-sm-9">{{ appointment.property }}</dd>
-    </dl>
+      <tr>
+        <th>Note</th>
+        <td style="white-space:pre-wrap;">{{ appointment.notes|default:"" }}</td>
+      </tr>
+    </table>
   </div>
 </div>
 {% endblock %}

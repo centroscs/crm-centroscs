@@ -5,13 +5,12 @@ from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
-
-from django.db import models
 
 from .forms import (
     AgentForm,
@@ -26,6 +25,13 @@ from .models import Agent, Appointment, Contact, Property, PropertyImage, TodoIt
 # ============================================================
 # Helpers
 # ============================================================
+
+def _model_has_field(model_cls, field_name: str) -> bool:
+    try:
+        return any(getattr(f, "name", None) == field_name for f in model_cls._meta.get_fields())
+    except Exception:
+        return False
+
 
 def _order_by_if_exists(qs, *fields: str):
     model_fields = {f.name for f in qs.model._meta.get_fields() if hasattr(f, "name")}
@@ -77,6 +83,13 @@ def _current_agent_for_request(request: HttpRequest) -> Optional[Agent]:
     except Exception:
         return None
 
+def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
+    """
+    Salva SEMPRE il luogo leggendo dal POST 'location'.
+    """
+    luogo = (request.POST.get("location") or "").strip()
+    # qui è il tuo campo vero:
+    obj.location = luogo
 
 def _forbid(request: HttpRequest, msg: str, fallback_url_name: str = "crm_dashboard") -> HttpResponse:
     messages.error(request, msg)
@@ -88,7 +101,7 @@ def _can_edit_property(request: HttpRequest, prop: Property) -> bool:
     if _is_admin_user(request.user):
         return True
     me = _current_agent_for_request(request)
-    return bool(me and prop.owner_agent_id == me.id)
+    return bool(me and getattr(prop, "owner_agent_id", None) == me.id)
 
 
 def _can_manage_images(request: HttpRequest, prop: Optional[Property]) -> bool:
@@ -99,6 +112,32 @@ def _can_manage_images(request: HttpRequest, prop: Optional[Property]) -> bool:
         # in creazione: l'agente può caricare perché l'immobile sarà suo
         return _current_agent_for_request(request) is not None
     return _can_edit_property(request, prop)
+
+
+def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
+    """
+    Salva SEMPRE il luogo (anche se vuoto) leggendo dal POST 'location'.
+    Supporta eventuali campi diversi: location / place / luogo.
+    """
+    luogo = (request.POST.get("location") or "").strip()
+    if hasattr(obj, "location"):
+        obj.location = luogo
+    elif hasattr(obj, "place"):
+        obj.place = luogo
+    elif hasattr(obj, "luogo"):
+        obj.luogo = luogo
+
+
+def _propertyimage_ordering_fields() -> tuple[str, ...]:
+    """
+    Ritorna ordering sicuro:
+    -is_primary sempre, poi position se esiste, poi id.
+    """
+    fields = ["-is_primary"]
+    if _model_has_field(PropertyImage, "position"):
+        fields.append("position")
+    fields.append("id")
+    return tuple(fields)
 
 
 # ============================================================
@@ -161,6 +200,14 @@ def contact_edit(request: HttpRequest, pk: int) -> HttpResponse:
     return render(request, "core/contact_form.html", {"form": form, "object": obj, "contact": obj})
 
 
+def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
+    """
+    Salva SEMPRE il luogo leggendo dal POST 'location'.
+    """
+    luogo = (request.POST.get("location") or "").strip()
+    obj.location = luogo
+
+
 # ============================================================
 # APPOINTMENTS
 # ============================================================
@@ -180,7 +227,6 @@ def appointments_list(request: HttpRequest) -> HttpResponse:
         },
     )
 
-
 @login_required
 def appointment_new(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
@@ -194,14 +240,8 @@ def appointment_new(request: HttpRequest) -> HttpResponse:
                     return _forbid(request, "Questo utente non è collegato ad alcun Agente.")
                 obj.agent = me
 
-            luogo = (request.POST.get("location") or "").strip()
-            if luogo:
-                if hasattr(obj, "location"):
-                    obj.location = luogo
-                elif hasattr(obj, "place"):
-                    obj.place = luogo
-                elif hasattr(obj, "luogo"):
-                    obj.luogo = luogo
+            # 🔴 QUESTA ERA LA RIGA MANCANTE
+            _set_appointment_location(obj, request)
 
             obj.save()
             form.save_m2m()
@@ -212,12 +252,14 @@ def appointment_new(request: HttpRequest) -> HttpResponse:
     else:
         form = AppointmentForm()
 
-    return render(request, "core/appointment_form.html", {"form": form, "appointment": None, "object": None})
-
+    return render(request, "core/appointment_form.html", {"form": form, "object": None})
 
 @login_required
 def appointment_detail(request: HttpRequest, pk: int) -> HttpResponse:
-    obj = get_object_or_404(Appointment.objects.select_related("agent", "contact", "property"), pk=pk)
+    obj = get_object_or_404(
+        Appointment.objects.select_related("agent", "contact", "property"),
+        pk=pk,
+    )
     return render(request, "core/appointment_detail.html", {"appointment": obj, "object": obj})
 
 
@@ -237,13 +279,11 @@ def appointment_edit(request: HttpRequest, pk: int) -> HttpResponse:
         if form.is_valid():
             updated = form.save(commit=False)
 
-            luogo = (request.POST.get("location") or "").strip()
-            if hasattr(updated, "location"):
-                updated.location = luogo
-            elif hasattr(updated, "place"):
-                updated.place = luogo
-            elif hasattr(updated, "luogo"):
-                updated.luogo = luogo
+            if not _is_admin_user(request.user):
+                updated.agent = _current_agent_for_request(request)
+
+            # 🔴 ANCHE QUI ERA MANCANTE
+            _set_appointment_location(updated, request)
 
             updated.save()
             form.save_m2m()
@@ -254,8 +294,7 @@ def appointment_edit(request: HttpRequest, pk: int) -> HttpResponse:
     else:
         form = AppointmentForm(instance=obj)
 
-    return render(request, "core/appointment_form.html", {"form": form, "object": obj, "appointment": obj})
-
+    return render(request, "core/appointment_form.html", {"form": form, "object": obj})
 
 @login_required
 def appointments_calendar(request: HttpRequest) -> HttpResponse:
@@ -430,23 +469,30 @@ def property_add(request: HttpRequest) -> HttpResponse:
                 me = _current_agent_for_request(request)
                 if not me:
                     return _forbid(request, "Questo utente non è collegato ad alcun Agente.")
-                obj.owner_agent = me
+                if hasattr(obj, "owner_agent"):
+                    obj.owner_agent = me
 
             obj.save()
 
             # upload immagini (permesso: admin o agente che sta creando il proprio immobile)
             if can_manage_images:
-                pos = 0
                 created_any = False
+                pos_field = _model_has_field(PropertyImage, "position")
+                pos = 0
+
                 for f in request.FILES.getlist("images"):
-                    PropertyImage.objects.create(property=obj, image=f, position=pos)
+                    kwargs = {"property": obj, "image": f}
+                    if pos_field:
+                        kwargs["position"] = pos
+                    PropertyImage.objects.create(**kwargs)
                     pos += 1
                     created_any = True
 
                 # se caricate e nessuna primaria: imposta la prima
                 if created_any and not obj.images.filter(is_primary=True).exists():
-                    first_img = obj.images.order_by("position", "id").first()
+                    first_img = obj.images.order_by(*_propertyimage_ordering_fields()).first()
                     if first_img:
+                        obj.images.update(is_primary=False)
                         first_img.is_primary = True
                         first_img.save(update_fields=["is_primary"])
 
@@ -467,7 +513,7 @@ def property_add(request: HttpRequest) -> HttpResponse:
 @login_required
 def property_detail(request: HttpRequest, pk: int) -> HttpResponse:
     prop = get_object_or_404(Property, pk=pk)
-    images = list(prop.images.all().order_by("-is_primary", "position", "id"))
+    images = list(prop.images.all().order_by(*_propertyimage_ordering_fields()))
     return render(request, "core/property_detail.html", {"property": prop, "object": prop, "images": images})
 
 
@@ -481,11 +527,12 @@ def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
 
     can_manage_images = _can_manage_images(request, obj)
     image_form = PropertyImageMultiUploadForm()
+    pos_field = _model_has_field(PropertyImage, "position")
 
     # --- azioni foto ---
     if request.method == "POST" and can_manage_images:
         # A) reorder drag&drop
-        if request.POST.get("reorder_images") == "1":
+        if request.POST.get("reorder_images") == "1" and pos_field:
             order_ids = (request.POST.get("order_ids") or "").strip()
             if order_ids:
                 ids = []
@@ -494,7 +541,6 @@ def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
                     if part.isdigit():
                         ids.append(int(part))
 
-                # aggiorna position solo per immagini dell'immobile
                 imgs = {i.id: i for i in PropertyImage.objects.filter(property=obj, id__in=ids)}
                 pos = 0
                 for img_id in ids:
@@ -520,7 +566,7 @@ def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
 
             # auto-fix: se era principale -> promuovi la prima rimasta
             if was_primary:
-                next_img = obj.images.order_by("position", "id").first()
+                next_img = obj.images.order_by(*_propertyimage_ordering_fields()).first()
                 if next_img:
                     obj.images.update(is_primary=False)
                     next_img.is_primary = True
@@ -548,19 +594,25 @@ def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
             prop = form.save()
 
             if can_manage_images:
-                # append nuove immagini in coda
-                last_pos = prop.images.aggregate(models.Max("position")).get("position__max") or 0
-                pos = last_pos + 1 if prop.images.exists() else 0
+                # append nuove immagini in coda (solo se position esiste)
+                pos = 0
+                if pos_field and prop.images.exists():
+                    last_pos = prop.images.aggregate(models.Max("position")).get("position__max")
+                    pos = (last_pos + 1) if last_pos is not None else 0
 
                 created_any = False
                 for f in request.FILES.getlist("images"):
-                    PropertyImage.objects.create(property=prop, image=f, position=pos)
+                    kwargs = {"property": prop, "image": f}
+                    if pos_field:
+                        kwargs["position"] = pos
+                    PropertyImage.objects.create(**kwargs)
                     pos += 1
                     created_any = True
 
                 if created_any and not prop.images.filter(is_primary=True).exists():
-                    first_img = prop.images.order_by("position", "id").first()
+                    first_img = prop.images.order_by(*_propertyimage_ordering_fields()).first()
                     if first_img:
+                        prop.images.update(is_primary=False)
                         first_img.is_primary = True
                         first_img.save(update_fields=["is_primary"])
 
@@ -571,7 +623,7 @@ def property_edit(request: HttpRequest, pk: int) -> HttpResponse:
     else:
         form = PropertyForm(instance=obj)
 
-    images = list(obj.images.all().order_by("-is_primary", "position", "id"))
+    images = list(obj.images.all().order_by(*_propertyimage_ordering_fields()))
     return render(
         request,
         "core/property_form.html",

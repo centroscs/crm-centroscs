@@ -17,11 +17,11 @@
   {% if form.non_field_errors %}
     <div class="alert alert-danger">{{ form.non_field_errors }}</div>
   {% endif %}
-  
+
   {% if form.errors %}
-     <div class="alert alert-danger">
+    <div class="alert alert-danger">
       <strong>Errori form:</strong><br>
-    {{ form.errors }}
+      {{ form.errors }}
     </div>
   {% endif %}
 
@@ -50,20 +50,21 @@
       {% if form.property.errors %}<div class="text-danger small">{{ form.property.errors }}</div>{% endif %}
     </div>
 
-    <div class="col-12">
-      <label class="form-label">Luogo</label>
+<div class="col-12">
+  <label class="form-label">Luogo</label>
 
-      {# INPUT SEMPRE EDITABILE (anche se il ModelForm non ha il campo) #}
-      <input
-        type="text"
-        name="location"
-        class="form-control"
-        value="{% firstof appointment.location appointment.place appointment.luogo '' %}"
-        placeholder="Via Roma 10, Albano Laziale / Ufficio / Zoom"
-      >
+  <input
+    type="text"
+    name="location"
+    class="form-control"
+    value="{% firstof request.POST.location object.location '' %}"
+    placeholder="Via Roma 10, Albano Laziale / Ufficio / Zoom"
+  >
 
-      <div class="form-text">Esempio: “Via Roma 10, Albano Laziale” oppure “Ufficio / Zoom”.</div>
-    </div>
+  <div class="form-text">
+    Esempio: “Via Roma 10, Albano Laziale” oppure “Ufficio / Zoom”.
+  </div>
+</div>
 
     <div class="col-md-6">
       <label class="form-label">Inizio (data e ora)</label>
@@ -77,13 +78,11 @@
       {% if form.end.errors %}<div class="text-danger small">{{ form.end.errors }}</div>{% endif %}
     </div>
 
-    {% if form.notes %}
     <div class="col-12">
       <label class="form-label">Note</label>
       {{ form.notes }}
       {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
     </div>
-    {% endif %}
   </div>
 
   <hr class="my-4">
