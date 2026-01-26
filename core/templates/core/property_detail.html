@@ -7,171 +7,108 @@
     <h1 class="h4 mb-0">Immobile {{ property.code }}</h1>
     <div style="opacity:.75;">
       {{ property.code }}
-      {% if property.description %} — {{ property.description }}{% elif property.title %} — {{ property.title }}{% endif %}
+      {% if property.description %} — {{ property.description }}
+      {% elif property.title %} — {{ property.title }}
+      {% endif %}
     </div>
   </div>
+
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'properties_list' %}">Indietro</a>
-    <a class="btn btn-primary" href="{% url 'property_edit' property.pk %}">Modifica</a>
+    {% if request.user.is_staff or request.user.is_superuser %}
+      <a class="btn btn-primary" href="{% url 'property_edit' property.pk %}">Modifica</a>
+    {% endif %}
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-12 col-lg-7">
-
-    {# --- FOTO PRINCIPALE --- #}
-    {% with main=images|first %}
-      <div class="card">
-        <div class="card-body p-2">
-          {% if main and main.image %}
-            <img src="{{ main.image.url }}"
-                 class="w-100"
-                 style="height:420px;object-fit:cover;border-radius:16px;cursor:zoom-in;"
-                 data-lightbox-src="{{ main.image.url }}"
-                 alt="Foto principale">
+{# ===================== DATI IMMOBILE ===================== #}
+<div class="card mb-3">
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <tr>
+        <th style="width:180px;">Codice</th>
+        <td>{{ property.code }}</td>
+      </tr>
+      <tr>
+        <th>Descrizione</th>
+        <td>{% firstof property.description property.title "" %}</td>
+      </tr>
+      <tr>
+        <th>Città</th>
+        <td>{{ property.city|default:"" }}</td>
+      </tr>
+      <tr>
+        <th>Indirizzo</th>
+        <td>{{ property.address|default:"" }}</td>
+      </tr>
+      <tr>
+        <th>Prezzo</th>
+        <td>
+          {% if property.price %}
+            € {{ property.price }}
           {% else %}
-            <div class="d-flex align-items-center justify-content-center text-muted"
-                 style="height:420px;border-radius:16px;background:rgba(0,0,0,.03);">
-              Nessuna foto caricata
-            </div>
+            <span class="text-muted">—</span>
           {% endif %}
-        </div>
-      </div>
-    {% endwith %}
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
 
-    {# --- GALLERIA THUMBS --- #}
-    {% if images and images|length > 0 %}
-      <div class="card mt-3">
-        <div class="card-header">
-          <strong>Galleria foto</strong>
-          <span class="text-muted small ms-2">Clicca per ingrandire</span>
+{# ===================== FOTO ===================== #}
+<div class="card mb-4">
+  <div class="card-header">
+    <strong>Foto immobile</strong>
+  </div>
+  <div class="card-body">
+    {% if images %}
+      <div class="d-flex flex-wrap gap-2">
+        {% for img in images %}
+          <a href="{{ img.image.url }}" target="_blank">
+            <img src="{{ img.image.url }}"
+                 style="width:140px;height:140px;object-fit:cover;border-radius:10px;
+                        {% if img.is_primary %}outline:3px solid #0d6efd;{% endif %}">
+          </a>
+        {% endfor %}
+      </div>
+      <div class="small mt-2 text-muted">
+        L’immagine con bordo blu è la <b>principale</b>.
+      </div>
+    {% else %}
+      <div class="text-muted">Nessuna foto caricata.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ===================== MAPPA ===================== #}
+{% with addr=property.address|default:"" city=property.city|default:"" %}
+  {% with full_address=addr|add:" "|add:city %}
+    {% if addr or city %}
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Posizione</strong>
+          <a class="btn btn-sm btn-outline-primary"
+             href="https://www.google.com/maps/search/?api=1&query={{ full_address|urlencode }}"
+             target="_blank" rel="noopener">
+            Apri su Google Maps
+          </a>
         </div>
-        <div class="card-body">
-          <div class="d-flex flex-wrap gap-2">
-            {% for img in images %}
-              {% if img.image %}
-                <div class="position-relative" style="width:92px;height:92px;">
-                  <img src="{{ img.image.url }}"
-                       style="width:92px;height:92px;object-fit:cover;border-radius:14px;cursor:zoom-in;{% if img.is_primary %}outline:3px solid #0d6efd;{% endif %}"
-                       data-lightbox-src="{{ img.image.url }}"
-                       alt="Foto immobile">
-                  {% if img.is_primary %}
-                    <span class="badge bg-primary position-absolute" style="top:6px;left:6px;">P</span>
-                  {% endif %}
-                </div>
-              {% endif %}
-            {% endfor %}
-          </div>
+        <div class="card-body p-0">
+          <iframe
+            width="100%"
+            height="360"
+            style="border:0;border-bottom-left-radius:12px;border-bottom-right-radius:12px;"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            src="https://www.google.com/maps?q={{ full_address|urlencode }}&output=embed">
+          </iframe>
+        </div>
+        <div class="card-footer small text-muted">
+          Se l’indirizzo è incompleto, la mappa può “indovinare” male. Usa “Apri su Google Maps” per verificare.
         </div>
       </div>
     {% endif %}
+  {% endwith %}
+{% endwith %}
 
-  </div>
-
-  <div class="col-12 col-lg-5">
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <tr>
-            <th style="width: 180px;">Codice</th>
-            <td>{{ property.code }}</td>
-          </tr>
-          <tr>
-            <th>Descrizione</th>
-            <td>{% firstof property.description property.title "" %}</td>
-          </tr>
-          <tr>
-            <th>Città</th>
-            <td>{{ property.city|default:"" }}</td>
-          </tr>
-          <tr>
-            <th>Indirizzo</th>
-            <td>{{ property.address|default:"" }}</td>
-          </tr>
-          <tr>
-            <th>Prezzo</th>
-            <td>
-              {% if property.price %}€ {{ property.price }}{% else %}<span class="text-muted">—</span>{% endif %}
-            </td>
-          </tr>
-        </table>
-      </div>
-    </div>
-
-    {# opzionale: appuntamenti collegati #}
-    {% with appts=property.appointments.all %}
-      {% if appts and appts|length > 0 %}
-        <div class="card mt-3">
-          <div class="card-header"><strong>Appuntamenti collegati</strong></div>
-          <div class="card-body">
-            <ul class="list-unstyled mb-0">
-              {% for a in appts %}
-                <li class="mb-2">
-                  <a href="{% url 'appointment_detail' a.pk %}">{{ a.title }}</a>
-                  <div class="text-muted small">
-                    {{ a.start|date:"d/m/Y H:i" }}{% if a.end %} → {{ a.end|date:"d/m/Y H:i" }}{% endif %}
-                  </div>
-                </li>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
-      {% endif %}
-    {% endwith %}
-
-  </div>
-</div>
-
-<hr class="my-4">
-
-<h5 class="mb-2">Allegati</h5>
-
-{% if attachments %}
-  <ul class="list-group">
-    {% for a in attachments %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <a href="{{ a.file.url }}" target="_blank" rel="noopener">
-          {{ a.filename|default:a.file.name }}
-        </a>
-        <small class="text-muted">
-          {{ a.created_at|date:"d/m/Y H:i" }}
-        </small>
-      </li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <div class="text-muted">Nessun allegato.</div>
-{% endif %}
-
-{# ---------------- LIGHTBOX ---------------- #}
-<div id="lightbox"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px;">
-  <img id="lightboxImg" src="" style="max-width:95vw;max-height:90vh;border-radius:16px;">
-</div>
-
-<script>
-  (function() {
-    const lb = document.getElementById("lightbox");
-    const lbImg = document.getElementById("lightboxImg");
-    if (!lb || !lbImg) return;
-
-    function openLB(src) {
-      lbImg.src = src;
-      lb.style.display = "flex";
-    }
-    function closeLB() {
-      lb.style.display = "none";
-      lbImg.src = "";
-    }
-
-    document.querySelectorAll("[data-lightbox-src]").forEach(el => {
-      el.addEventListener("click", () => openLB(el.getAttribute("data-lightbox-src")));
-    });
-
-    lb.addEventListener("click", closeLB);
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeLB();
-    });
-  })();
-</script>
 {% endblock %}
