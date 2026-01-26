@@ -32,7 +32,14 @@
               {% endif %}
             </td>
             <td><a href="{% url 'property_detail' p.pk %}"><strong>{{ p.code }}</strong></a></td>
-            <td>{{ p.description|default:"" }}</td>
+            <td>
+  {% if p.description %}
+    {{ p.description|truncatechars:120 }}
+    {% if p.description|length > 120 %}
+      <a href="{% url 'property_detail' p.pk %}">… (leggi tutto)</a>
+    {% endif %}
+  {% endif %}
+</td>
             <td>{{ p.address|default:"" }}</td>
             <td>{{ p.city|default:"" }}</td>
             <td class="text-end">{% if p.price %}€ {{ p.price }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
