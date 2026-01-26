@@ -101,11 +101,17 @@ class PropertyImage(models.Model):
                 first_img.is_primary = True
                 first_img.save(update_fields=["is_primary"])
 
-
 class Appointment(models.Model):
     title = models.CharField(max_length=200)
     start = models.DateTimeField()
     end = models.DateTimeField()
+
+    # ✅ QUESTO È IL CAMPO CHE DEVE ESISTERE
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
 
     agent = models.ForeignKey(
         Agent,
