@@ -1,0 +1,80 @@
+{% extends "core/base.html" %}
+{% block title %}Todo — {{ agent.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-0">Todo — {{ agent.name }}</h1>
+    <div class="text-muted small">Gestione todo agente</div>
+  </div>
+  <a class="btn btn-primary btn-sm" href="{% url 'agent_todo_new' agent.pk %}">+ Nuova Todo</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header fw-semibold">Aperte</div>
+      <div class="card-body">
+        {% if open_todos %}
+          <div class="list-group">
+            {% for t in open_todos %}
+              <div class="list-group-item d-flex justify-content-between align-items-start">
+                <div class="me-3">
+                  <div class="fw-semibold">{{ t.title }}</div>
+                  <div class="text-muted small">
+                    Scadenza:
+                    {% if t.due_at %}{{ t.due_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                  </div>
+                  <div class="mt-2 d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'todo_edit' t.pk %}">Modifica</a>
+                  </div>
+                </div>
+
+                <form method="post" action="{% url 'todo_toggle' t.pk %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-success" type="submit">Chiudi</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">Nessuna todo aperta.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header fw-semibold">Chiuse</div>
+      <div class="card-body">
+        {% if closed_todos %}
+          <div class="list-group">
+            {% for t in closed_todos %}
+              <div class="list-group-item d-flex justify-content-between align-items-start">
+                <div class="me-3">
+                  <div class="fw-semibold">{{ t.title }}</div>
+                  <div class="text-muted small">
+                    Scadenza:
+                    {% if t.due_at %}{{ t.due_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                  </div>
+                  <div class="mt-2 d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'todo_edit' t.pk %}">Modifica</a>
+                  </div>
+                </div>
+
+                <form method="post" action="{% url 'todo_toggle' t.pk %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-secondary" type="submit">Riapri</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">Nessuna todo chiusa.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
