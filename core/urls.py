@@ -30,6 +30,7 @@ urlpatterns = [
     path("crm/agents/<int:pk>/calendar/", views_crm.agent_calendar, name="agent_calendar"),
     path("crm/agents/<int:pk>/feed/", views_crm.agent_appointments_feed, name="agent_appointments_feed"),
     path("crm/agents/new/", views_crm.agent_add, name="agent_new"),
+    path("crm/agents/<int:pk>/edit/", views_crm.agent_edit, name="agent_edit"),
 
     # Properties
     path("crm/properties/", views_crm.properties_list, name="properties_list"),
