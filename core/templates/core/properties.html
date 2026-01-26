@@ -33,11 +33,17 @@
             </td>
             <td><a href="{% url 'property_detail' p.pk %}"><strong>{{ p.code }}</strong></a></td>
             <td>
+<td>
   {% if p.description %}
-    {{ p.description|truncatechars:120 }}
-    {% if p.description|length > 120 %}
-      <a href="{% url 'property_detail' p.pk %}">… (leggi tutto)</a>
-    {% endif %}
+    <span
+      class="text-truncate d-inline-block"
+      style="max-width: 420px;"
+      data-bs-toggle="tooltip"
+      data-bs-placement="top"
+      title="{{ p.description }}"
+    >
+      {{ p.description|truncatechars:120 }}
+    </span>
   {% endif %}
 </td>
             <td>{{ p.address|default:"" }}</td>
