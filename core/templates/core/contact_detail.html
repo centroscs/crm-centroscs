@@ -12,8 +12,40 @@
 
 <div class="card">
   <div class="card-body">
-    <div><strong>Email:</strong> {{ contact.email|default:"—" }}</div>
-    <div><strong>Telefono:</strong> {{ contact.phone|default:"—" }}</div>
+{# ================= EMAIL ================= #}
+<div class="d-flex align-items-center justify-content-between mb-2">
+  <div>
+    <strong>Email:</strong>
+    {{ contact.email|default:"—" }}
+  </div>
+
+  {% if contact.email %}
+    <a class="btn btn-sm btn-outline-primary"
+       href="mailto:{{ contact.email|urlencode }}?subject={{ 'Richiesta informazioni'|urlencode }}">
+      ✉️ Scrivi
+    </a>
+  {% endif %}
+</div>
+
+{# ================= WHATSAPP ================= #}
+{% if contact.phone %}
+  {% with wa=contact.phone|cut:" "|cut:"-"|cut:"("|cut:")"|cut:"." %}
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <strong>Telefono:</strong>
+      {{ contact.phone }}
+    </div>
+
+    <a class="btn btn-sm btn-outline-success"
+       href="https://wa.me/{{ wa }}"
+       target="_blank" rel="noopener">
+      💬 WhatsApp
+    </a>
+  </div>
+  {% endwith %}
+{% else %}
+  <div><strong>Telefono:</strong> —</div>
+{% endif %}
     <hr>
     <div class="text-muted small"><strong>Creato:</strong> {{ contact.created_at }}</div>
     <div class="text-muted small"><strong>Aggiornato:</strong> {{ contact.updated_at }}</div>
