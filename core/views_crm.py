@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Optional
 
 from django.contrib import messages
@@ -115,8 +115,39 @@ def _set_appointment_location(obj: Appointment, request: HttpRequest) -> None:
 
 @login_required
 def crm_dashboard(request: HttpRequest) -> HttpResponse:
-    return render(request, "core/dashboard.html")
+    # Date locali
+    today = timezone.localdate()
+    tomorrow = today + timedelta(days=1)
 
+    # Visibilità: admin vede tutto, agente vede solo il suo
+    qs_appt = Appointment.objects.select_related("agent").all()
+    qs_todo = TodoItem.objects.select_related("agent").filter(is_done=False)
+
+    if not _is_admin_user(request.user):
+        me = _current_agent_for_request(request)
+        if me:
+            qs_appt = qs_appt.filter(agent=me)
+            qs_todo = qs_todo.filter(agent=me)
+        else:
+            # utente non collegato ad agente: mostra vuoto (ma non esplode)
+            qs_appt = qs_appt.none()
+            qs_todo = qs_todo.none()
+
+    appointments_today = qs_appt.filter(start__date=today).order_by("start")
+    appointments_tomorrow = qs_appt.filter(start__date=tomorrow).order_by("start")
+
+    todos_today = qs_todo.filter(due_at__date=today).order_by("due_at")
+    todos_tomorrow = qs_todo.filter(due_at__date=tomorrow).order_by("due_at")
+
+    ctx = {
+        "today": today,
+        "tomorrow": tomorrow,
+        "appointments_today": appointments_today,
+        "appointments_tomorrow": appointments_tomorrow,
+        "todos_today": todos_today,
+        "todos_tomorrow": todos_tomorrow,
+    }
+    return render(request, "core/dashboard.html", ctx)
 
 # ============================================================
 # CONTACTS
@@ -272,7 +303,16 @@ def appointments_feed(request: HttpRequest) -> HttpResponse:
     start_q = _parse_dt_local(request.GET.get("start"))
     end_q = _parse_dt_local(request.GET.get("end"))
 
-    qs = Appointment.objects.all()
+    qs = Appointment.objects.select_related("agent").all()
+
+    # Visibilità: admin vede tutto, agente vede solo il suo
+    if not _is_admin_user(request.user):
+        me = _current_agent_for_request(request)
+        if me:
+            qs = qs.filter(agent=me)
+        else:
+            qs = qs.none()
+
     if start_q:
         qs = qs.filter(end__gte=start_q)
     if end_q:
@@ -280,8 +320,26 @@ def appointments_feed(request: HttpRequest) -> HttpResponse:
 
     qs = qs.order_by("start")
 
+    # Palette “stabile” per agente (ripetibile)
+    palette = [
+        "#0d6efd",  # blu
+        "#198754",  # verde
+        "#dc3545",  # rosso
+        "#fd7e14",  # arancio
+        "#6f42c1",  # viola
+        "#20c997",  # teal
+        "#0dcaf0",  # cyan
+        "#6c757d",  # grigio
+    ]
+
+    def color_for_agent(agent_id: int | None) -> str:
+        if not agent_id:
+            return "#343a40"  # default (dark)
+        return palette[(agent_id - 1) % len(palette)]
+
     data = []
     for a in qs:
+        c = color_for_agent(getattr(a, "agent_id", None))
         data.append(
             {
                 "id": a.pk,
@@ -289,10 +347,13 @@ def appointments_feed(request: HttpRequest) -> HttpResponse:
                 "start": a.start.isoformat() if a.start else None,
                 "end": a.end.isoformat() if a.end else None,
                 "url": reverse("appointment_detail", kwargs={"pk": a.pk}),
+                # FullCalendar colors
+                "backgroundColor": c,
+                "borderColor": c,
+                "textColor": "#ffffff",
             }
         )
     return JsonResponse(data, safe=False)
-
 
 @login_required
 def appointments_sync(request: HttpRequest) -> HttpResponse:

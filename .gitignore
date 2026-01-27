@@ -45,3 +45,4 @@ my_todos_admin.html
 .gitignore.BACKUP
 agent_todos.html
 realestate_app ultima versione.zip
+staticfiles/

@@ -5,6 +5,8 @@
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
 <style>
   #dashCalendar { max-width: 1100px; margin: 0 auto; }
+  .mini-table td, .mini-table th { padding: .35rem .5rem; }
+  .mini-muted { font-size: .85rem; color: #6c757d; }
 </style>
 {% endblock %}
 
@@ -12,7 +14,7 @@
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
     <h1 class="h4 mb-0">Dashboard CRM</h1>
-    <div class="text-muted small">Calendario settimanale + accessi rapidi</div>
+    <div class="text-muted small">Calendario settimanale + accessi rapidi + scadenze</div>
   </div>
   <div class="text-muted small">
     Calendario (settimana) — Stato: <span id="dashCalStatus">inizializzazione…</span>
@@ -29,7 +31,8 @@
   </div>
 
   <div class="col-lg-3">
-    <div class="card">
+    <!-- ACCESSI RAPIDI -->
+    <div class="card mb-3">
       <div class="card-header fw-semibold">Accessi rapidi</div>
       <div class="list-group list-group-flush">
         <a class="list-group-item list-group-item-action" href="{% url 'appointment_new' %}">+ Nuovo appuntamento</a>
@@ -38,6 +41,157 @@
         <a class="list-group-item list-group-item-action" href="{% url 'property_add' %}">+ Nuovo immobile</a>
       </div>
     </div>
+
+    <!-- SCADENZE -->
+    <div class="card">
+      <div class="card-header fw-semibold">Scadenze</div>
+      <div class="card-body">
+
+        {# Se non c'è nulla né oggi né domani, mostra solo il messaggio #}
+        {% if not appointments_today and not todos_today and not appointments_tomorrow and not todos_tomorrow %}
+          <div class="mini-muted">Nessuna scadenza tra oggi e domani.</div>
+        {% else %}
+
+          {# ===== OGGI ===== #}
+          {% if appointments_today or todos_today %}
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold text-danger">Oggi</div>
+              <div class="mini-muted">{{ today }}</div>
+            </div>
+
+            {% if appointments_today %}
+              <div class="mini-muted fw-semibold">Appuntamenti</div>
+              <div class="table-responsive">
+                <table class="table table-sm mini-table mb-2">
+                  <thead>
+                    <tr>
+                      <th style="width:72px;">Ora</th>
+                      <th>Titolo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in appointments_today %}
+                      <tr>
+                        <td class="text-danger fw-semibold">
+                          {% if a.start %}{{ a.start|date:"H:i" }}{% else %}—{% endif %}
+                        </td>
+                        <td>
+                          <a href="{% url 'appointment_detail' a.pk %}" class="text-decoration-none">
+                            {{ a.title|default:"(senza titolo)" }}
+                          </a>
+                          {% if a.agent %}<div class="mini-muted">{{ a.agent.name }}</div>{% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+
+            {% if todos_today %}
+              <div class="mini-muted fw-semibold">Todo</div>
+              <div class="table-responsive">
+                <table class="table table-sm mini-table mb-0">
+                  <thead>
+                    <tr>
+                      <th style="width:72px;">Ora</th>
+                      <th>Todo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for t in todos_today %}
+                      <tr>
+                        <td class="text-danger fw-semibold">
+                          {% if t.due_at %}{{ t.due_at|date:"H:i" }}{% else %}—{% endif %}
+                        </td>
+                        <td>
+                          {{ t.title|default:"(senza titolo)" }}
+                          {% if t.agent %}<div class="mini-muted">{{ t.agent.name }}</div>{% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+          {% endif %}
+
+          {# Separatore solo se esiste qualcosa sia oggi che domani #}
+          {% if appointments_today or todos_today %}
+            {% if appointments_tomorrow or todos_tomorrow %}
+              <hr class="my-3">
+            {% endif %}
+          {% endif %}
+            <hr class="my-3">
+          {% endif %}
+
+          {# ===== DOMANI ===== #}
+          {% if appointments_tomorrow or todos_tomorrow %}
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold text-warning">Domani</div>
+              <div class="mini-muted">{{ tomorrow }}</div>
+            </div>
+
+            {% if appointments_tomorrow %}
+              <div class="mini-muted fw-semibold">Appuntamenti</div>
+              <div class="table-responsive">
+                <table class="table table-sm mini-table mb-2">
+                  <thead>
+                    <tr>
+                      <th style="width:72px;">Ora</th>
+                      <th>Titolo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in appointments_tomorrow %}
+                      <tr>
+                        <td class="text-warning fw-semibold">
+                          {% if a.start %}{{ a.start|date:"H:i" }}{% else %}—{% endif %}
+                        </td>
+                        <td>
+                          <a href="{% url 'appointment_detail' a.pk %}" class="text-decoration-none">
+                            {{ a.title|default:"(senza titolo)" }}
+                          </a>
+                          {% if a.agent %}<div class="mini-muted">{{ a.agent.name }}</div>{% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+
+            {% if todos_tomorrow %}
+              <div class="mini-muted fw-semibold">Todo</div>
+              <div class="table-responsive">
+                <table class="table table-sm mini-table mb-0">
+                  <thead>
+                    <tr>
+                      <th style="width:72px;">Ora</th>
+                      <th>Todo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for t in todos_tomorrow %}
+                      <tr>
+                        <td class="text-warning fw-semibold">
+                          {% if t.due_at %}{{ t.due_at|date:"H:i" }}{% else %}—{% endif %}
+                        </td>
+                        <td>
+                          {{ t.title|default:"(senza titolo)" }}
+                          {% if t.agent %}<div class="mini-muted">{{ t.agent.name }}</div>{% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+          {% endif %}
+
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}
@@ -58,13 +212,12 @@
         headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
         events: {
           url: "{% url 'appointments_feed' %}",
-          failure: function () {
-            statusEl.textContent = 'errore feed';
-          }
+          failure: function () { statusEl.textContent = 'errore feed'; }
         },
         loading: function (isLoading) {
           statusEl.textContent = isLoading ? 'caricamento…' : 'ok';
         }
+        // NB: i colori evento arrivano già dal feed JSON (backgroundColor/borderColor)
       });
 
       cal.render();

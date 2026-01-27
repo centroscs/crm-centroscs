@@ -1,8 +1,11 @@
 from django.urls import path
 from . import views_crm
 from django.db import models
+from django.views.generic import RedirectView
 
 urlpatterns = [
+    path("crm/", views_crm.crm_dashboard, name="crm_dashboard"),
+    path("", RedirectView.as_view(url="/crm/", permanent=False), name="home"),
     path("crm/", views_crm.crm_dashboard, name="crm_dashboard"),
 
     # Contacts

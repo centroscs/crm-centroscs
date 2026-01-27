@@ -11,9 +11,6 @@
 
 {% if properties and properties|length > 0 %}
 
-  {# =========================
-     MOBILE (cards)  < md
-     ========================= #}
   <div class="d-md-none">
     <div class="d-flex flex-column gap-2">
       {% for p in properties %}
@@ -70,9 +67,6 @@
     </div>
   </div>
 
-  {# =========================
-     DESKTOP/TABLET (table) >= md
-     ========================= #}
   <div class="d-none d-md-block">
     <div class="table-responsive">
       <table class="table table-hover align-middle">
