@@ -3,10 +3,14 @@
 
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
   #dashCalendar { max-width: 1100px; margin: 0 auto; }
   .mini-table td, .mini-table th { padding: .35rem .5rem; }
   .mini-muted { font-size: .85rem; color: #6c757d; }
+  #dashMap { height: 320px; width: 100%; border-radius: .5rem; }
+  .map-muted { font-size: .85rem; color: #6c757d; }
+  .agent-dot { display:inline-block; width:10px; height:10px; border-radius:999px; margin-right:.35rem; vertical-align:middle; }
 </style>
 {% endblock %}
 
@@ -26,6 +30,20 @@
     <div class="card">
       <div class="card-body">
         <div id="dashCalendar"></div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">Mappa appuntamenti (settimana)</span>
+        <span class="map-muted" id="dashMapStatus">in attesa…</span>
+      </div>
+      <div class="card-body">
+        <div id="dashMap"></div>
+        <div class="map-muted mt-2">
+          <span class="agent-dot" style="background: var(--bs-primary);"></span>Colore = agente (uguale al calendario).
+          <span class="ms-2">Tip: compila bene il campo <strong>Luogo</strong> dell’appuntamento (via + città).</span>
+        </div>
       </div>
     </div>
   </div>
@@ -198,31 +216,200 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const statusEl = document.getElementById('dashCalStatus');
-    const el = document.getElementById('dashCalendar');
+    const mapStatusEl = document.getElementById('dashMapStatus');
+    const calEl = document.getElementById('dashCalendar');
+    const mapEl = document.getElementById('dashMap');
 
+    // =========================
+    // Leaflet map
+    // =========================
+    let map = null;
+    let markersLayer = null;
+
+    function ensureMap() {
+      if (!mapEl || typeof L === 'undefined') return null;
+      if (map) return map;
+
+      map = L.map(mapEl, { scrollWheelZoom: false });
+      markersLayer = L.layerGroup().addTo(map);
+
+      // Centro “neutro” (Roma) finché non abbiamo marker
+      map.setView([41.9028, 12.4964], 10);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      return map;
+    }
+
+    function clearMarkers() {
+      if (markersLayer) markersLayer.clearLayers();
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function geocodeOnce(query) {
+      const q = (query || '').trim();
+      if (!q) return null;
+
+      const cacheKey = 'geoCache:v1:' + q.toLowerCase();
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) return JSON.parse(cached);
+      } catch (_) {}
+
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=it&q=' + encodeURIComponent(q);
+      const resp = await fetch(url, { method: 'GET' });
+      if (!resp.ok) return null;
+
+      const data = await resp.json();
+      if (!data || !data.length) return null;
+
+      const hit = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      if (!Number.isFinite(hit.lat) || !Number.isFinite(hit.lon)) return null;
+
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(hit));
+      } catch (_) {}
+
+      return hit;
+    }
+
+    function makeDotIcon(color) {
+      const c = color || '#343a40';
+      return L.divIcon({
+        className: '',
+        html: '<div style="width:14px;height:14px;border-radius:999px;background:' + c + ';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)"></div>',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+        popupAnchor: [0, -8]
+      });
+    }
+
+    async function refreshMapFromCalendar(cal) {
+      const m = ensureMap();
+      if (!m || !cal) return;
+
+      const events = cal.getEvents() || [];
+      const points = [];
+
+      // Unico per location (evita doppioni), ma manteniamo popup con più appuntamenti
+      const byLocation = new Map();
+
+      for (const ev of events) {
+        const loc = (ev.extendedProps && ev.extendedProps.location) ? String(ev.extendedProps.location).trim() : '';
+        if (!loc) continue;
+
+        const color = (ev.backgroundColor) || (ev.extendedProps && ev.extendedProps.color) || '#343a40';
+        const agentName = (ev.extendedProps && ev.extendedProps.agentName) ? String(ev.extendedProps.agentName) : '';
+        const title = ev.title || '(senza titolo)';
+        const url = ev.url || '';
+
+        if (!byLocation.has(loc)) {
+          byLocation.set(loc, { loc, color, items: [] });
+        }
+        byLocation.get(loc).items.push({ title, agentName, url, color });
+      }
+
+      clearMarkers();
+
+      const locations = Array.from(byLocation.values());
+      if (!locations.length) {
+        mapStatusEl && (mapStatusEl.textContent = 'nessun luogo in vista');
+        return;
+      }
+
+      mapStatusEl && (mapStatusEl.textContent = 'geocoding…');
+
+      // Geocodifica in sequenza (più gentile verso Nominatim)
+      for (let i = 0; i < locations.length; i++) {
+        const row = locations[i];
+
+        let hit = null;
+        try {
+          hit = await geocodeOnce(row.loc);
+        } catch (e) {
+          hit = null;
+        }
+
+        if (hit) {
+          const marker = L.marker([hit.lat, hit.lon], { icon: makeDotIcon(row.color) });
+          const popupHtml = row.items
+            .map((it) => {
+              const a = it.agentName ? ('<div class="text-muted small">' + it.agentName + '</div>') : '';
+              const linkStart = it.url ? ('<a href="' + it.url + '" class="text-decoration-none">') : '';
+              const linkEnd = it.url ? '</a>' : '';
+              return '<div style="margin-bottom:6px;">' + linkStart + '<div style="font-weight:600;">' + (it.title || '') + '</div>' + linkEnd + a + '</div>';
+            })
+            .join('');
+
+          marker.bindPopup('<div style="min-width:220px;"><div style="font-weight:700;margin-bottom:6px;">' + row.loc + '</div>' + popupHtml + '</div>');
+          marker.addTo(markersLayer);
+
+          points.push([hit.lat, hit.lon]);
+        }
+
+        // piccolo delay per non martellare
+        await sleep(900);
+      }
+
+      if (points.length) {
+        const bounds = L.latLngBounds(points);
+        m.fitBounds(bounds.pad(0.25));
+        mapStatusEl && (mapStatusEl.textContent = 'ok');
+      } else {
+        mapStatusEl && (mapStatusEl.textContent = 'nessun indirizzo geocodificabile');
+      }
+    }
+
+    // =========================
+    // FullCalendar
+    // =========================
     try {
-      const cal = new FullCalendar.Calendar(el, {
+      const cal = new FullCalendar.Calendar(calEl, {
         initialView: 'timeGridWeek',
         height: 'auto',
         nowIndicator: true,
         locale: 'it',
+
+        // ✅ meno righe: griglia a 1h, etichette ogni 2h
+        slotDuration: '01:00:00',
+        slotLabelInterval: '02:00:00',
+
         headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+
         events: {
           url: "{% url 'appointments_feed' %}",
           failure: function () { statusEl.textContent = 'errore feed'; }
         },
+
         loading: function (isLoading) {
           statusEl.textContent = isLoading ? 'caricamento…' : 'ok';
+        },
+
+        // quando cambia vista o arrivano eventi, aggiorna la mappa
+        eventsSet: function () {
+          refreshMapFromCalendar(cal);
         }
         // NB: i colori evento arrivano già dal feed JSON (backgroundColor/borderColor)
       });
 
       cal.render();
+
+      // inizializza mappa subito (se possibile) e prova un refresh
+      ensureMap();
+      refreshMapFromCalendar(cal);
     } catch (e) {
-      statusEl.textContent = 'errore JS';
+      statusEl && (statusEl.textContent = 'errore JS');
+      mapStatusEl && (mapStatusEl.textContent = 'errore JS');
       console.error(e);
     }
   });

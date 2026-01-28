@@ -351,6 +351,13 @@ def appointments_feed(request: HttpRequest) -> HttpResponse:
                 "backgroundColor": c,
                 "borderColor": c,
                 "textColor": "#ffffff",
+                # ✅ aggiunta per MAPPA (non rompe FullCalendar)
+                "extendedProps": {
+                    "location": getattr(a, "location", "") or "",
+                    "agentName": getattr(getattr(a, "agent", None), "name", "") or "",
+                    "agentId": getattr(a, "agent_id", None),
+                    "color": c,
+                },
             }
         )
     return JsonResponse(data, safe=False)
