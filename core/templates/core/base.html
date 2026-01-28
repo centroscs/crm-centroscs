@@ -12,8 +12,16 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container-fluid">
-    <a class="navbar-brand" href="{% url 'crm_dashboard' %}">CRM dashboard</a>
-
+<a class="navbar-brand d-flex align-items-center gap-2"
+   href="{% url 'crm_dashboard' %}">
+  <img src="{% static 'img/IMG_0394.jpg' %}"
+       alt="MESH"
+       height="32"
+       class="d-inline-block align-text-top">
+  <span class="fw-semibold">
+    MESH <span class="fw-normal">– WEB CRM SOFTWARE</span>
+  </span>
+</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#crmNav"
             aria-controls="crmNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
@@ -32,6 +40,9 @@
         <li class="nav-item"><a class="nav-link" href="{% url 'agents_list' %}">Agenti</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'properties_list' %}">Immobili</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'my_todos_alias' %}">Todo</a></li>
+<li class="nav-item">
+  <a class="nav-link" href="{% url 'reports_index' %}">Report</a>
+</li>
       </ul>
 
       <div class="d-flex align-items-center gap-3">
