@@ -123,3 +123,17 @@ GOOGLE_OAUTH_CLIENT_SECRET_FILE = str(BASE_DIR / "client_secret.json")
 GOOGLE_OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
 ]
+# =========================
+# EMAIL SMTP - IONOS
+# =========================
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtp.ionos.it"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = "info@centroscs.it"
+EMAIL_HOST_PASSWORD = "Matilde2015."
+
+DEFAULT_FROM_EMAIL = "MESH CRM <info@centroscs.it>"

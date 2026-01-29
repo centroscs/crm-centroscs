@@ -101,6 +101,7 @@ class PropertyImage(models.Model):
                 first_img.is_primary = True
                 first_img.save(update_fields=["is_primary"])
 
+
 class PropertyAttachment(models.Model):
     property = models.ForeignKey(
         Property,
@@ -157,6 +158,9 @@ class Appointment(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # ✅ NUOVO: quando inviamo l’alert email (serve per evitare doppioni)
+    alert_sent_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.title

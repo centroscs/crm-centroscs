@@ -1,10 +1,11 @@
 from django.urls import path
-from . import views_crm
-from django.db import models
 from django.views.generic import RedirectView
 
+from . import views_crm
+from core import views_reports
+
 urlpatterns = [
-    path("crm/", views_crm.crm_dashboard, name="crm_dashboard"),
+    # Home / Dashboard
     path("", RedirectView.as_view(url="/crm/", permanent=False), name="home"),
     path("crm/", views_crm.crm_dashboard, name="crm_dashboard"),
 
@@ -29,11 +30,11 @@ urlpatterns = [
     # Agents
     path("crm/agents/", views_crm.agents_list, name="agents_list"),
     path("crm/agents/add/", views_crm.agent_add, name="agent_add"),
+    path("crm/agents/new/", views_crm.agent_add, name="agent_new"),
     path("crm/agents/<int:pk>/", views_crm.agent_detail, name="agent_detail"),
+    path("crm/agents/<int:pk>/edit/", views_crm.agent_edit, name="agent_edit"),
     path("crm/agents/<int:pk>/calendar/", views_crm.agent_calendar, name="agent_calendar"),
     path("crm/agents/<int:pk>/feed/", views_crm.agent_appointments_feed, name="agent_appointments_feed"),
-    path("crm/agents/new/", views_crm.agent_add, name="agent_new"),
-    path("crm/agents/<int:pk>/edit/", views_crm.agent_edit, name="agent_edit"),
 
     # Properties
     path("crm/properties/", views_crm.properties_list, name="properties_list"),
@@ -41,11 +42,24 @@ urlpatterns = [
     path("crm/properties/<int:pk>/", views_crm.property_detail, name="property_detail"),
     path("crm/properties/<int:pk>/edit/", views_crm.property_edit, name="property_edit"),
 
-    # Todos (se già li avevi nel menu)
+    # Todos
     path("crm/my/todos/", views_crm.my_todos_alias, name="my_todos_alias"),
     path("crm/todos/admin/", views_crm.admin_todos, name="admin_todos"),
     path("crm/agents/<int:pk>/todos/", views_crm.agent_todos, name="agent_todos"),
     path("crm/agents/<int:pk>/todos/new/", views_crm.agent_todo_new, name="agent_todo_new"),
     path("crm/todos/<int:pk>/edit/", views_crm.todo_edit, name="todo_edit"),
     path("crm/todos/<int:pk>/toggle/", views_crm.todo_toggle, name="todo_toggle"),
+
+    # =========================
+    # REPORT PDF
+    # =========================
+    path("crm/reports/", views_reports.reports_index, name="reports_index"),
+
+    path("crm/reports/appointments/", views_reports.report_appointments_pdf, name="report_appointments"),
+    path("crm/reports/appointments/<int:agent_id>/", views_reports.report_appointments_pdf, name="report_appointments_agent"),
+
+    path("crm/reports/todos/", views_reports.report_todos_pdf, name="report_todos"),
+    path("crm/reports/todos/<int:agent_id>/", views_reports.report_todos_pdf, name="report_todos_agent"),
+
+    path("crm/reports/properties/", views_reports.report_properties_pdf, name="report_properties"),
 ]
